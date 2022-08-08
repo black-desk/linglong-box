@@ -23,6 +23,20 @@
 
 extern linglong::Runtime loadBundle(int argc, char **argv);
 
+static std::string helpInfomation = R"(OCI runtime for linglong.
+
+  Usage: ll-box ./some_oci_config.json # load json mode
+         ll-box [pipe] [local_to_passing_fd] # pipe mode
+         ll-box [container_id] [bundle_root] [command_to_exec] # load bundle mode
+         ll-box --help # show this help information)";
+
+void showHelpInfomation(bool err)
+{
+    auto &out = err ? std::cerr : std::cout;
+    out << helpInfomation << std::endl;
+    return;
+}
+
 int main(int argc, char **argv)
 {
     // TODO(iceyer): move loader to ll-loader?
@@ -30,6 +44,17 @@ int main(int argc, char **argv)
     // bool is_load_bundle = (argc == 4);
 
     linglong::Option opt;
+
+    if (argc == 2) {
+        if (strcmp("--help", argv[1])) {
+            showHelpInfomation(false);
+            return 0;
+        }
+    } else if (argc > 4) {
+        showHelpInfomation(true);
+        return -1;
+    }
+
     // TODO(iceyer): default in rootless
     if (geteuid() != 0) {
         opt.rootless = true;
