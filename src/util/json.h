@@ -13,9 +13,8 @@
 
 #define JSON_USE_IMPLICIT_CONVERSIONS 0
 
-#include "3party/nlohmann/json.hpp"
-
-#include "3party/optional/optional.hpp"
+#include <nlohmann/json.hpp>
+#include <optional/optional.hpp>
 
 namespace nlohmann {
 
