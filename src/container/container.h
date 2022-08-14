@@ -1,39 +1,29 @@
-/*
- * Copyright (c) 2020-2021. Uniontech Software Ltd. All rights reserved.
- *
- * Author:     Iceyer <me@iceyer.net>
- *
- * Maintainer: Iceyer <me@iceyer.net>
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
+#ifndef LINGLONG_BOX_SRC_CONTAINER_CONTAINER_H
+#define LINGLONG_BOX_SRC_CONTAINER_CONTAINER_H
 
-#ifndef LINGLONG_BOX_SRC_CONTAINER_CONTAINER_H_
-#define LINGLONG_BOX_SRC_CONTAINER_CONTAINER_H_
+#include <filesystem>
+#include <map>
+#include <optional>
 
-#include <memory>
+#include <nlohmann/json.hpp>
 
-#include "util/oci_runtime.h"
-#include "util/message_reader.h"
+#include "oci/config.h"
+#include "oci/runtime.h"
+#include "util/filesystem.h"
 
 namespace linglong {
-
-struct Option;
-struct ContainerPrivate;
-
 class Container
 {
 public:
-    explicit Container(const Runtime &r, std::unique_ptr<util::MessageReader> reader);
+    Container(const std::string &containerID, const nlohmann::json &configJson,
+              const std::filesystem::path &workingPath);
+    void Create();
 
-    ~Container();
-
-    int Start(const Option &opt);
-
-private:
-    std::unique_ptr<ContainerPrivate> dd_ptr;
+    struct OCI::Runtime::State state;
+    std::string ID;
+    OCI::Config config;
+    std::filesystem::path workingPath;
 };
-
 } // namespace linglong
 
-#endif /* LINGLONG_BOX_SRC_CONTAINER_CONTAINER_H_ */
+#endif /* LINGLONG_BOX_SRC_CONTAINER_H */

@@ -23,7 +23,7 @@ void showHelpInfomationError(int argc, char **argv)
 static std::string helpInfomation = R"(OCI runtime for linglong.
 
   Usage: ll-box create CONTAINER_ID [PATH_TO_BUNDLE]
-         ll-box start CONTAINER_ID
+         ll-box start [-d] CONTAINER_ID
          ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
          ll-box exec [-d] CONTAINER_ID -- COMMAND
          ll-box stop CONTAINER_ID
@@ -67,23 +67,29 @@ void create(int argc, char **argv)
 
 void start(int argc, char **argv)
 {
-    // ll-box start CONTAINER_ID
+    // ll-box start [-i] CONTAINER_ID
 
-    if (std::string(argv[1]) != "start" || argc != 3) {
+    if (std::string(argv[1]) != "start" || argc < 3) {
         throw std::runtime_error("unexpected command line arguments");
     }
 
-    std::string containerID(argv[2]);
+    bool interactive = false;
+    if (std::string(argv[2]) == "-i") {
+        interactive = true;
+    }
+
+    int optionOffset = interactive;
+
+    std::string containerID(argv[2 + optionOffset]);
 
     linglong::OCI::Runtime r;
 
-    r.Start(containerID);
+    r.Start(containerID, interactive);
 }
 
 void kill(int argc, char **argv)
 {
     // ll-box kill CONTAINER_ID
-
     if (std::string(argv[1]) != "kill" || argc != 3) {
         throw std::runtime_error("unexpected command line arguments");
     }
@@ -170,9 +176,9 @@ void exec(int argc, char **argv)
 
     if (spliter == "-p") { // ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
 
-        std::string pathToBundle(argv[4 + optionOffset]);
+        std::string pathToProcessJson(argv[4 + optionOffset]);
 
-        r.Exec(containerID, pathToBundle, detach);
+        r.Exec(containerID, pathToProcessJson, detach);
 
     } else if (spliter == "--") { // ll-box exec [-d] CONTAINER_ID -- COMMAND
 

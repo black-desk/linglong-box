@@ -24,28 +24,29 @@ public:
     Runtime();
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#create
-    void Create(std::string containerID, std::string pathToBundle);
+    void Create(const std::string &containerID, const std::string &pathToBundle);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#start
-    void Start(std::string containerID);
+    void Start(const std::string &containerID, const bool interactive = false);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#kill
-    void Kill(std::string containerID);
+    void Kill(const std::string &containerID);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#delete
-    void Delete(std::string containerID);
+    void Delete(const std::string &containerID);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#query-state
-    nlohmann::json State(std::string containerID);
+    nlohmann::json State(const std::string &containerID);
 
     // NOT STANDARD
 
-    std::vector<std::string> List();
-    int Exec(std::string containerID, std::string pathToProcess, bool detach = false);
-    int Exec(std::string containerID, std::vector<std::string> commandToExec, bool detach = false);
+    std::vector<std::string> List() const;
+    int Exec(const std::string &containerID, const std::string &pathToProcess, const bool detach = false);
+    int Exec(const std::string &containerID, const std::vector<std::string> &commandToExec, const bool detach = false);
 
 private:
     std::filesystem::path workingDir;
+    void updateState(const std::filesystem::path &containerWorkingDir, const struct State &state);
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(struct Runtime::State, ociVersion, id, status, pid, bundle,

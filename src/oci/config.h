@@ -17,7 +17,7 @@ namespace linglong::OCI {
 struct Config {
     // https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#root
     struct Root {
-        std::string path;
+        std::filesystem::path path;
         std::optional<bool> readonly;
     };
 
@@ -46,13 +46,12 @@ struct Config {
         // https://github.com/opencontainers/runtime-spec/blob/main/config.md#posix-platform-mounts
         std::optional<IDMapping> uidMappings, gidMappings;
 
-    private:
-        struct Prased {
+        struct Parsed {
             std::string data;
             uint32_t flags = 0;
         };
 
-        std::optional<Prased> prased;
+        std::unique_ptr<Parsed> parsed;
     };
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config.md#process
@@ -286,7 +285,7 @@ struct Config {
     struct Hooks {
         // POSIX
         struct Hook {
-            std::string path;
+            std::filesystem::path path;
             std::optional<std::vector<std::string>> args;
             std::optional<std::vector<std::string>> env;
             std::optional<int> timeout;
@@ -311,9 +310,9 @@ struct Config {
         // NOT STANDARD TODO: Document
         struct Rootfs {
             struct Overlayfs {
-                std::string lowerParent;
-                std::string upper;
-                std::string workdir;
+                std::filesystem::path lowerParent;
+                std::filesystem::path upper;
+                std::filesystem::path workdir;
                 std::vector<Config::Mount> mounts;
             };
 
@@ -323,9 +322,9 @@ struct Config {
 
             // TODO: maybe this api should be change?
             struct DBus {
-                std::string host;
-                std::string container;
-                std::string config;
+                std::filesystem::path host;
+                std::filesystem::path container;
+                std::filesystem::path config;
             };
 
             std::optional<Overlayfs> overlayfs;
@@ -351,7 +350,7 @@ struct Config {
         static const Type Cgroup;
 
         Type type;
-        std::optional<std::string> path;
+        std::optional<std::filesystem::path> path;
     };
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md#devices
@@ -363,7 +362,7 @@ struct Config {
         static const Type Block;
 
         Type type;
-        std::string path;
+        std::filesystem::path path;
         std::optional<int64_t> major;
         std::optional<int64_t> minor;
         std::optional<uint32_t> fileMode;
@@ -594,7 +593,7 @@ struct Config {
         std::optional<uint> defaultErrnoRet;
         std::optional<std::vector<Architecture>> architectures;
         std::optional<std::vector<Flag>> flags;
-        std::optional<std::string> listenerPath;
+        std::optional<std::filesystem::path> listenerPath;
         std::optional<std::vector<Syscall>> syscalls;
     };
 
@@ -632,17 +631,19 @@ struct Config {
     std::optional<std::vector<IDMapping>> uidMappings; // LINUX
     std::optional<std::vector<IDMapping>> gidMappings; // LINUX
     std::optional<std::vector<Device>> devices; // LINUX
-    std::optional<std::string> cgroupsPath; // LINUX
+    std::optional<std::filesystem::path> cgroupsPath; // LINUX
     std::optional<Resources> resources; // LINUX
     std::optional<std::map<std::string, std::string>> unified; // LINUX
     // TODO: std::optional<IntelRdt> intelRdt // LINUX
     std::optional<std::map<std::string, std::string>> sysctl; // LINUX
     std::optional<Seccomp> seccomp; // LINUX
     std::optional<MountPropagation> rootfsPropagation; // LINUX
-    std::optional<std::vector<std::string>> maskedPaths; // LINUX
-    std::optional<std::vector<std::string>> readonlyPaths; // LINUX
+    std::optional<std::vector<std::filesystem::path>> maskedPaths; // LINUX
+    std::optional<std::vector<std::filesystem::path>> readonlyPaths; // LINUX
     std::optional<std::string> mountLabel; // LINUX
     std::optional<Personality> personality; // LINUX
+
+    void parse(const std::filesystem::path& bundlePath);
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Root, path, readonly);
