@@ -8,6 +8,7 @@
 #include "nlohmann/json.hpp"
 #include "runtime.h"
 
+#include "util/exception.h"
 #include "util/filesystem.h"
 #include "util/lock.h"
 #include "container/container.h"
@@ -24,17 +25,16 @@ Runtime::Runtime()
 
 void Runtime::Create(const std::string &containerID, const std::string &pathToBundle)
 {
-    using linglong::util::fs::MkAbsolute;
     using linglong::util::FlockGuard;
-    using linglong::util::fs::MkDirP;
-    using linglong::util::fs::MkDir;
-    using linglong::util::fs::RmRF;
+    using linglong::util::fs::mkdirp;
+    using linglong::util::fs::mkdir;
+    using linglong::util::fs::rmrf;
 
-    auto bundle = MkAbsolute(pathToBundle);
+    auto bundle = std::filesystem::absolute(pathToBundle);
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        if (!MkDirP(this->workingDir, 0755)) {
+        if (!mkdirp(this->workingDir, 0755)) {
             auto msg = fmt::format("Failed to create dir (path=\"{}\")", this->workingDir);
             throw std::runtime_error(msg.c_str());
         }
@@ -44,12 +44,12 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         {
             auto guard = FlockGuard(this->workingDir);
 
-            if (!MkDir(containerWorkingDir, 0755)) {
+            if (!mkdir(containerWorkingDir, 0755)) {
                 auto msg = fmt::format("Failed to create dir (path=\"{}\")", containerWorkingDir);
                 throw std::runtime_error(msg.c_str());
             }
 
-            auto originConfigJsonPath = pathToBundle / std::filesystem::path("config.json");
+            auto originConfigJsonPath = bundle / std::filesystem::path("config.json");
             std::ifstream configJsonFile(originConfigJsonPath);
             if (!configJsonFile.is_open()) {
                 auto msg = fmt::format("Failed to open config.json (\"{}\")", originConfigJsonPath);
@@ -59,7 +59,7 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             nlohmann::json configJson;
             configJsonFile >> configJson;
 
-            container.reset(new Container(containerID, configJson, containerWorkingDir));
+            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir));
 
             this->updateState(containerWorkingDir, container->state);
         }
@@ -72,7 +72,7 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         }
 
     } catch (const std::runtime_error &e) {
-        RmRF(containerWorkingDir);
+        rmrf(containerWorkingDir);
         auto msg = fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle);
 
         std::throw_with_nested(std::runtime_error(msg.c_str()));
@@ -84,8 +84,7 @@ void Runtime::updateState(const std::filesystem::path &containerWorkingDir, cons
     auto stateJsonPath = containerWorkingDir / std::filesystem::path("state.json");
     std::ofstream stateJsonFile(stateJsonPath);
     if (!stateJsonFile.is_open()) {
-        auto msg = fmt::format("Failed to open file (\"{}\")", stateJsonPath);
-        throw std::runtime_error(msg.c_str());
+        throw util::RuntimeError(fmt::format("Failed to open file (\"{}\")", stateJsonPath));
     }
 
     nlohmann::json stateJson(state);

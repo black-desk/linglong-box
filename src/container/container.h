@@ -9,13 +9,12 @@
 
 #include "oci/config.h"
 #include "oci/runtime.h"
-#include "util/filesystem.h"
 
 namespace linglong {
 class Container
 {
 public:
-    Container(const std::string &containerID, const nlohmann::json &configJson,
+    Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
               const std::filesystem::path &workingPath);
     void Create();
 
@@ -23,6 +22,7 @@ public:
     std::string ID;
     OCI::Config config;
     std::filesystem::path workingPath;
+    std::filesystem::path bundlePath;
 };
 } // namespace linglong
 

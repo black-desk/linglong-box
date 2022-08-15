@@ -14,11 +14,10 @@
 #include <filesystem>
 namespace linglong::util::fs {
 
-bool MkDirP(std::filesystem::path path, __mode_t mode);
-bool MkDir(std::filesystem::path path, __mode_t mode);
-bool Rm(std::filesystem::path path);
-bool RmRF(std::filesystem::path path);
-std::filesystem::path MkAbsolute(const std::filesystem::path &path) noexcept;
+bool mkdirp(std::filesystem::path path, __mode_t mode);
+bool mkdir(std::filesystem::path path, __mode_t mode);
+bool rm(std::filesystem::path path);
+bool rmrf(std::filesystem::path path);
 
 } // namespace linglong::util::fs
 

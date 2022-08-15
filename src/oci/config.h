@@ -19,6 +19,8 @@ struct Config {
     struct Root {
         std::filesystem::path path;
         std::optional<bool> readonly;
+
+        void parse(std::filesystem::path bundlePath);
     };
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md#user-namespace-mappings
@@ -36,8 +38,8 @@ struct Config {
 
         static const Type Bind, Proc, Sysfs, Devpts, Mqueue, Tmpfs, Cgroup, Cgroup2;
 
-        std::string destination;
-        std::optional<std::string> source;
+        std::filesystem::path destination;
+        std::optional<std::filesystem::path> source;
         std::optional<std::vector<std::string>> options;
         std::optional<Type> type; // POSIX
 
@@ -47,11 +49,13 @@ struct Config {
         std::optional<IDMapping> uidMappings, gidMappings;
 
         struct Parsed {
-            std::string data;
+            std::vector<std::string> data;
             uint32_t flags = 0;
         };
 
         std::unique_ptr<Parsed> parsed;
+
+        void parse(std::filesystem::path bundlePath);
     };
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config.md#process
@@ -268,7 +272,7 @@ struct Config {
 
         std::optional<bool> terminal;
         std::optional<ConsoleSize> consoleSize;
-        std::string cwd;
+        std::filesystem::path cwd;
         std::optional<std::vector<std::string>> env;
         std::vector<std::string> args;
         std::optional<std::vector<Rlimit>> rlimits; // POSIX
@@ -279,6 +283,8 @@ struct Config {
         std::optional<std::string> selinuxLabel; // LINUX
 
         User user;
+
+        void parse(const std::filesystem::path& bundlePath);
     };
 
     // POSIX https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#posix-platform-hooks
@@ -351,6 +357,8 @@ struct Config {
 
         Type type;
         std::optional<std::filesystem::path> path;
+
+        void parse(const std::filesystem::path& bundlePath);
     };
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md#devices
@@ -363,8 +371,8 @@ struct Config {
 
         Type type;
         std::filesystem::path path;
-        std::optional<int64_t> major;
-        std::optional<int64_t> minor;
+        int64_t major;
+        int64_t minor;
         std::optional<uint32_t> fileMode;
         std::optional<uint32_t> uid;
         std::optional<uint32_t> gid;
@@ -643,7 +651,7 @@ struct Config {
     std::optional<std::string> mountLabel; // LINUX
     std::optional<Personality> personality; // LINUX
 
-    void parse(const std::filesystem::path& bundlePath);
+    void parse(const std::filesystem::path &bundlePath);
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Root, path, readonly);

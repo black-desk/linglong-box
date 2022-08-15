@@ -1,5 +1,6 @@
 #include "semver2.h"
 #include "fmt/format.h"
+#include "util/exception.h"
 
 #include <regex>
 
@@ -14,8 +15,7 @@ SemVer::SemVer(std::string s)
     std::regex_search(s, matches, rgx);
 
     if (matches.size() != 6) {
-        auto msg = fmt::format("Fail to parse SemVer from \"{}\"", s);
-        throw std::runtime_error(msg.c_str());
+        throw RuntimeError(fmt::format("Fail to parse SemVer from \"{}\"", s));
     }
 
     this->major = std::stoull(matches[1].str());

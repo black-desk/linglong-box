@@ -32,6 +32,8 @@ static std::string helpInfomation = R"(OCI runtime for linglong.
          ll-box delete CONTAINER_ID
          ll-box --help # show this help information)";
 
+static std::runtime_error unexpectedCommandLineArgumentsError("unexpected command line arguments");
+
 static void doShowHelpInfomation(bool isError) noexcept
 {
     auto *out = isError ? &std::cerr : &std::cout;
@@ -50,7 +52,7 @@ void create(int argc, char **argv)
     // ll-box create CONTAINER_ID [PATH_TO_BUNDLE]
 
     if (std::string(argv[1]) != "create" || argc < 3 || argc > 4) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     std::string containerID(argv[2]);
@@ -70,7 +72,7 @@ void start(int argc, char **argv)
     // ll-box start [-i] CONTAINER_ID
 
     if (std::string(argv[1]) != "start" || argc < 3) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     bool interactive = false;
@@ -91,7 +93,7 @@ void kill(int argc, char **argv)
 {
     // ll-box kill CONTAINER_ID
     if (std::string(argv[1]) != "kill" || argc != 3) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     std::string containerID(argv[2]);
@@ -106,7 +108,7 @@ void delete_(int argc, char **argv)
     // ll-box delete CONTAINER_ID
 
     if (std::string(argv[1]) != "delete" || argc != 3) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     std::string containerID(argv[2]);
@@ -121,7 +123,7 @@ void list(int argc, char **argv)
     // ll-box list
 
     if (std::string(argv[1]) != "kill" || argc != 2) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     linglong::OCI::Runtime r;
@@ -138,7 +140,7 @@ void state(int argc, char **argv)
     // ll-box qurey CONTAINER_ID
 
     if (std::string(argv[1]) != "state" || argc != 3) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     std::string containerID(argv[2]);
@@ -156,7 +158,7 @@ void exec(int argc, char **argv)
     // ll-box exec [-d] CONTAINER_ID -- COMMAND
 
     if (std::string(argv[1]) != "exec" || argc < 3) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     bool detach = false;
@@ -167,7 +169,7 @@ void exec(int argc, char **argv)
     int optionOffset = detach;
 
     if (argc < 5 + optionOffset) {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 
     std::string containerID(argv[2 + optionOffset]), spliter(argv[3 + optionOffset]);
@@ -191,6 +193,6 @@ void exec(int argc, char **argv)
         r.Exec(containerID, commandToExec, detach);
 
     } else {
-        throw std::runtime_error("unexpected command line arguments");
+        throw unexpectedCommandLineArgumentsError;
     }
 }

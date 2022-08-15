@@ -4,8 +4,17 @@
 #include <exception>
 #include <ostream>
 
-namespace linglong {
-namespace util {
+namespace linglong::util {
+
+class RuntimeError : public std::runtime_error
+{
+    std::string msg;
+
+public:
+    RuntimeError(std::string &&s);
+
+    virtual const char *what() const noexcept override;
+};
 inline void printException(std::ostream &out, const std::exception &e, int depth = 0)
 {
     for (int i = 1; i <= depth; i++) {
@@ -18,7 +27,7 @@ inline void printException(std::ostream &out, const std::exception &e, int depth
         printException(out, nested, depth + 1);
     }
 }
-} // namespace util
-} // namespace linglong
+
+} // namespace linglong::util
 
 #endif
