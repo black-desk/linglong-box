@@ -23,7 +23,7 @@ void showHelpInfomationError(int argc, char **argv)
 static std::string helpInfomation = R"(OCI runtime for linglong.
 
   Usage: ll-box create CONTAINER_ID [PATH_TO_BUNDLE]
-         ll-box start [-d] CONTAINER_ID
+         ll-box start [-i] CONTAINER_ID
          ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
          ll-box exec [-d] CONTAINER_ID -- COMMAND
          ll-box stop CONTAINER_ID
