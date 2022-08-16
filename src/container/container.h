@@ -27,10 +27,11 @@ public:
 
     struct OCI::Runtime::State state;
     std::string ID;
-    OCI::Config config;
+    std::unique_ptr<OCI::Config> config;
     std::filesystem::path workingPath;
     std::filesystem::path bundlePath;
     Option option;
+    const bool isRef;
 
 private:
     struct Main {
@@ -43,8 +44,8 @@ private:
             Rootfs(const OCI::Config::Annotations::Rootfs &config);
         };
 
-        Main(std::unique_ptr<LocalServer>, std::unique_ptr<Rootfs>);
-        int create();
+        Main(std::unique_ptr<LocalServer>, std::unique_ptr<Rootfs>, std::unique_ptr<OCI::Config>);
+        void create();
 
         std::unique_ptr<LocalServer> server;
         std::unique_ptr<Rootfs> rootfs;
