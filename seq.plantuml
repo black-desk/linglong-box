@@ -1,9 +1,9 @@
 @startuml ll-box
 
-skinparam responseMessageBelowArrow true
+!pragma teoz true
 
 actor user
-participant "ll-box" as cli
+participant cli
 participant monitor
 
 box "rootfs namespaces"
@@ -15,6 +15,7 @@ participant init
 participant app
 end box
 
+
 user -> cli: run "create"
 activate cli
 cli -> cli: parse config.json
@@ -24,15 +25,10 @@ cli -> cli: update state
 
 cli ->> monitor: fork
 activate monitor
-
-
 monitor -> monitor: prctl **PR_SET_CHILD_SUBREAPER**
-monitor -> rootfs: clone & vfork
-note left
-blocked
-end note
-activate rootfs
+{start} monitor -> rootfs: clone & vfork
 
+activate rootfs
 group prepare rootfs
 rootfs -> rootfs: setup user namespace
 rootfs -> rootfs: do native mounts
@@ -42,52 +38,63 @@ end
 rootfs -> init: clone
 activate init
 init -> init: setup container
-init -> init: start listening socket
+
 rootfs <-- init: "create" result
-monitor <- rootfs: init pid
-note left
-resume
-end note
+
+{end} monitor <-- rootfs: init pid
+
+{start} <-> {end}: **blocked**
+
 deactivate rootfs
+
 cli <-- monitor: "create" result
 cli -> cli: update state
+
 ==created==
+monitor -> monitor: run "prestart"
 monitor -> monitor: run "createRuntime"
 monitor -> init: requset run hooks
 init -> init: run "createContainer"
-monitor <- init: "hooks" result
-cli <- monitor: "hooks" result
+init -> init: `pivot_root`
+init -> init: start listening socket
+monitor <-- init: "hooks" result
 note over monitor
 start waiting
 init to exit
 end note
+cli <-- monitor: "hooks" result
 user <-- cli: done
 deactivate cli
+
 
 user -> cli: run "start"
 activate cli
 cli -> init: start process
 init -> init: run "startContainer"
-cli <-- init: "hooks" result
 init -> app: fork & exec
 activate app
-init -> init: run "poststart"
+init -> monitor : request run hooks
+monitor -> monitor: run "poststart"
+monitor --> init: "hooks" result
 cli <-- init: "start & hooks" result
 cli -> cli: update state
+
 ==running==
+
 user <-- cli: done
 deactivate cli
 
 app -> app: run
 
-note right
-At this time pstree will
-show someting like this:
+note left
+At this time `pstree`
+on host will show
+someting like this:
 - monitor
-  - dbus proxy
-  - fuse
-  - init
-    - app
+    - dbus proxy
+    - fuse
+    - init
+        - app
 end note
 
 user -> cli: run "kill"

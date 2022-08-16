@@ -21,22 +21,24 @@ int main(int argc, char **argv)
 
     if (argc >= 2) {
         std::string command = argv[1];
-        if (command == "--help") {
-            cmd = showHelpInfomation;
+        if (command == "---") {
+            cmd = create;
         } else if (command == "create") {
             cmd = create;
         } else if (command == "start") {
             cmd = start;
-        } else if (command == "state") {
-            cmd = state;
         } else if (command == "kill") {
             cmd = kill;
         } else if (command == "delete") {
             cmd = delete_;
         } else if (command == "list") {
             cmd = list;
+        } else if (command == "state") {
+            cmd = state;
         } else if (command == "exec") {
             cmd = exec;
+        } else if (command == "--help") {
+            cmd = showHelpInfomation;
         }
     }
 

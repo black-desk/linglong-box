@@ -25,6 +25,8 @@ public:
     void Kill();
     void Exec(const OCI::Config::Process &p);
 
+    void waitCreateHooks();
+
     struct OCI::Runtime::State state;
     std::string ID;
     std::unique_ptr<OCI::Config> config;
@@ -34,28 +36,41 @@ public:
     const bool isRef;
 
 private:
+    int hooksSocket;
+
     struct Rootfs;
-    struct Init;
+    struct PID1;
 
     struct Monitor {
-        Monitor(std::unique_ptr<Init>, std::unique_ptr<Rootfs>, std::unique_ptr<OCI::Config>);
-        void create();
+        Monitor(const std::filesystem::path &workingPath, std::unique_ptr<OCI::Config>, int createSocket,
+                int hookSocket);
 
-        std::unique_ptr<Init> server;
+        void run();
+        void init();
+        void initSignalHandler();
+
+        std::filesystem::path workingPath;
+        std::unique_ptr<PID1> pid1;
         std::unique_ptr<Rootfs> rootfs;
     };
 
     struct Rootfs {
         Rootfs(const OCI::Config::Annotations::Rootfs &config);
         void allocateStack();
+        void setup(PID1& pid1);
+
         int cloneFlag;
         int stackSize;
         void *stackTop;
+        int initPIDSocket;
     };
 
-    struct Init {
-        Init(const std::filesystem::path &socketAddress);
+    struct PID1 {
+        PID1(const OCI::Config &config, const std::filesystem::path &socketAddress);
         void Listen();
+
+        int createContainerSocket;
+        int poststartSocket;
     };
 
     std::unique_ptr<Monitor> monitor;

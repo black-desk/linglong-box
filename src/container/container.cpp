@@ -1,5 +1,6 @@
 
 
+#include <iostream>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/prctl.h>
@@ -12,6 +13,7 @@
 #include "container.h"
 
 #include "util/exception.h"
+#include "util/socket.h"
 #include "util/wait.h"
 
 namespace linglong {
@@ -37,47 +39,139 @@ void Container::Create()
         throw util::RuntimeError(fmt::format("Cannot call create on a container reference."));
     }
 
-    auto init = std::unique_ptr<Init>(new Init(this->workingPath / "socket"));
+    auto createSockets = util::SocketPair();
+    auto hooksSockets = util::SocketPair();
 
-    auto rootfs = std::unique_ptr<Rootfs>();
-    if (this->config->annotations->rootfs.has_value()) {
-        rootfs.reset(new Rootfs(this->config->annotations->rootfs.value()));
-    }
+    this->monitor.reset(
+        new Monitor(this->workingPath, std::move(this->config), createSockets.second, hooksSockets.second));
+    int monitorPID = fork();
+    if (monitorPID) { // parent
+        int ret;
 
-    this->monitor.reset(new Monitor(std::move(init), std::move(rootfs), std::move(this->config)));
-    this->monitor->create();
-}
-
-void Container::Monitor::create()
-{
-    
-    auto rootfsPID = clone(doCreate, this->rootfs->stackTop, this->rootfs->cloneFlag, this);
-    if (rootfsPID) { // parent
-        int wstatus;
-        if (waitpid(rootfsPID, &wstatus, 0) == -1) {
-            spdlog::error("waitpid error: {} (errno={})", std::strerror(errno), errno);
-            throw util::RuntimeError(fmt::format("cannot get create result"));
-        } else {
-            auto result = util::parse_wstatus(wstatus);
-            if (result.first.has_value() && result.first.value() == 0) {
-                return;
-            } else {
-                throw util::RuntimeError(fmt::format("Failed to create container {}", this->ID));
-            }
+        ret = close(createSockets.second);
+        if (ret) {
+            spdlog::error("Failed to close created message socket: {} ({})", strerror(errno), errno);
         }
+
+        ret = close(hooksSockets.second);
+        if (ret) {
+            spdlog::error("Failed to close create hooks message socket: {} ({})", strerror(errno), errno);
+        }
+
+        util::Socket(createSockets.first) >> ret;
+
+        if (ret != 0) {
+            throw util::RuntimeError(fmt::format("Failed to create container (ID=\"{}\")", this->ID));
+        }
+
+        this->hooksSocket = hooksSockets.first;
+
         return;
+
+    } else { // child
+        this->monitor->run(); // NOTE: should not return
+        exit(-1);
     }
 }
 
-static int doCreate(void *arg)
+void Container::waitCreateHooks()
 {
-    return -1;
+    int ret = -1;
+    util::Socket(hooksSocket) >> ret;
+    if (ret != 0) {
+        throw util::RuntimeError(fmt::format("Failed to run create hooks for container (ID=\"{}\")", this->ID));
+    }
+}
+
+Container::Monitor::Monitor(const std::filesystem::path &workingPath, std::unique_ptr<OCI::Config> config,
+                            int createSocket, int hookSocket)
+    : workingPath(workingPath)
+    , pid1(new PID1(*config, this->workingPath / "socket"))
+    , rootfs(new Rootfs(config->annotations.has_value()
+                            ? config->annotations->rootfs.value_or(OCI::Config::Annotations::Rootfs())
+                            : OCI::Config::Annotations::Rootfs()))
+{
+}
+
+void Container::Monitor::run()
+{
+    try {
+        this->init();
+
+        auto initPIDSockets = util::SocketPair();
+        auto createContainerSockets = util::SocketPair();
+        auto poststartSockets = util::SocketPair();
+
+        this->pid1->createContainerSocket = createContainerSockets.second;
+        this->pid1->poststartSocket = poststartSockets.second;
+        this->rootfs->initPIDSocket = initPIDSockets.second;
+
+        this->rootfs->setup(this);
+
+
+        int ret = -1;
+
+        ret = close(createContainerSockets.second);
+        if (ret) {
+            spdlog::error("Failed to close createdContainer socket: {} ({})", strerror(errno), errno);
+        }
+
+        ret = close(createContainerSockets.second);
+        if (ret) {
+            spdlog::error("Failed to close createdContainer socket: {} ({})", strerror(errno), errno);
+        }
+
+    } catch (const util::RuntimeError &e) {
+        std::stringstream s;
+        util::printException(s, e);
+        spdlog::error("Unhanded exception during container monitor running: {}", s);
+    } catch (const std::exception &e) {
+        spdlog::error("Unhanded exception during container monitor running: {}", e.what());
+    } catch (...) {
+        spdlog::error("Unhanded exception during container monitor running");
+    }
+    exit(-1);
+}
+
+void Container::Monitor::init()
+{
+    int ret = -1;
+
+    auto pid = getpid();
+    ret = setpgid(pid, pid);
+    if (ret) {
+        spdlog::warn("Failed to setpgid: {} ({})", std::strerror(errno), errno);
+    }
+
+    ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
+    if (ret) {
+        spdlog::warn("Failed to set CHILD_SUBREAPER");
+    }
+
+    this->initSignalHandler();
+}
+
+void Container::Monitor::initSignalHandler()
+{
+    // TODO:
+    // 1. block signal will be listen by signalfd later like SIGCHLD.
+    // 2. register signal handler for other signal.
 }
 
 Container::Rootfs::Rootfs(const OCI::Config::Annotations::Rootfs &config)
     : cloneFlag(CLONE_VFORK | CLONE_NEWUSER | CLONE_NEWNS | SIGCHLD)
     , stackSize(1024 * 1024)
 {
+}
+
+static int _(void *arg)
+{
+}
+
+void Container::Rootfs::setup(PID1 &pid1)
+{
+    this->allocateStack();
+    this->createNamespaces();
 }
 
 void Container::Rootfs::allocateStack()

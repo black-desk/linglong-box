@@ -71,6 +71,8 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             this->updateState(containerWorkingDir, container->state);
         }
 
+        container->waitCreateHooks();
+
     } catch (const std::runtime_error &e) {
         rmrf(containerWorkingDir);
         auto msg = fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle);
