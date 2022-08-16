@@ -3,6 +3,8 @@
 #include "container.h"
 
 #include <unistd.h>
+#include <signal.h>
+#include <sys/prctl.h>
 
 namespace linglong {
 
@@ -30,17 +32,16 @@ void Container::Create()
             rootfs.reset(new Main::Rootfs(this->config.annotations->rootfs.value()));
         }
 
-        auto init = std::unique_ptr<Main::Init>();
-        if (!this->option.ProcessAsEntrypoint) {
-            init.reset(new Main::Init);
-        }
-
-        this->main.reset(new Main(std::move(server), std::move(rootfs), std::move(init)));
-        if(this->main->create());
-        exit(0);
+        this->main.reset(new Main(std::move(server), std::move(rootfs)));
+        exit(this->main->create());
     }
 }
 
-void 
+int Container::Main::create()
+{
+    prctl(PR_SET_CHILD_SUBREAPER, 1);
+    
+    int flags =  | SIGCHLD;
+}
 
 } // namespace linglong

@@ -36,23 +36,19 @@ private:
     struct Main {
         struct LocalServer {
             LocalServer(const std::filesystem::path &socketAddress);
+            void Listen();
         };
 
         struct Rootfs {
             Rootfs(const OCI::Config::Annotations::Rootfs &config);
         };
 
-        struct Init {
-        };
-
-        Main(std::unique_ptr<LocalServer>, std::unique_ptr<Rootfs>, std::unique_ptr<Init>);
-        void create();
+        Main(std::unique_ptr<LocalServer>, std::unique_ptr<Rootfs>);
+        int create();
 
         std::unique_ptr<LocalServer> server;
         std::unique_ptr<Rootfs> rootfs;
-        std::unique_ptr<Init> init;
     };
-
     std::unique_ptr<Main> main;
 };
 } // namespace linglong
