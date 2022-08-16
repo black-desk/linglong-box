@@ -34,23 +34,31 @@ public:
     const bool isRef;
 
 private:
-    struct Main {
-        struct LocalServer {
-            LocalServer(const std::filesystem::path &socketAddress);
-            void Listen();
-        };
+    struct Rootfs;
+    struct Init;
 
-        struct Rootfs {
-            Rootfs(const OCI::Config::Annotations::Rootfs &config);
-        };
-
-        Main(std::unique_ptr<LocalServer>, std::unique_ptr<Rootfs>, std::unique_ptr<OCI::Config>);
+    struct Monitor {
+        Monitor(std::unique_ptr<Init>, std::unique_ptr<Rootfs>, std::unique_ptr<OCI::Config>);
         void create();
 
-        std::unique_ptr<LocalServer> server;
+        std::unique_ptr<Init> server;
         std::unique_ptr<Rootfs> rootfs;
     };
-    std::unique_ptr<Main> main;
+
+    struct Rootfs {
+        Rootfs(const OCI::Config::Annotations::Rootfs &config);
+        void allocateStack();
+        int cloneFlag;
+        int stackSize;
+        void *stackTop;
+    };
+
+    struct Init {
+        Init(const std::filesystem::path &socketAddress);
+        void Listen();
+    };
+
+    std::unique_ptr<Monitor> monitor;
 };
 } // namespace linglong
 
