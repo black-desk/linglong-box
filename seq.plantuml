@@ -1,7 +1,5 @@
 @startuml ll-box
 
-!pragma teoz true
-
 actor user
 participant cli
 participant monitor
@@ -23,46 +21,61 @@ cli -> cli: update state
 
 ==creating==
 
-{start1} cli ->> monitor: fork
+cli ->> monitor: fork
 activate monitor
 monitor -> monitor: create systemd scope
 monitor -> monitor: prctl **PR_SET_CHILD_SUBREAPER**
 monitor ->> rootfs: clone
 activate rootfs
-monitor -> monitor: start epoll
+
+group config rootfs userns
+monitor <- rootfs: requset write ID mapping
+monitor -> monitor: setup ID mapping
+monitor --> rootfs: done
+end
+
+newpage
 
 group prepare rootfs
-rootfs -> rootfs: setup user namespace
 rootfs -> rootfs: do native mounts
-rootfs -> rootfs: setup fuse
+rootfs -> rootfs: maybe setup fuse
 rootfs -> rootfs: setup dbus-proxy
 end
 
+
 rootfs -> init: clone
 activate init
+
+group config container userns
+rootfs <- init: requset write ID mapping
+rootfs -> rootfs: setup ID mapping
+rootfs --> init: done
+end
+
 deactivate rootfs
-monitor <- init: requset write ID mapping
-monitor -> monitor: setup ID mapping
-monitor --> init: done
+
 init -> init: setup container
 monitor <-- init: "create" result
-{end1} cli <-- monitor: "create" result
-{start1} <-> {end1}: **blocked**
+cli <-- monitor: "create" result
 cli -> cli: update state
-
 ==created==
+newpage
+
+
 monitor -> monitor: run "prestart"
 monitor -> monitor: run "createRuntime"
 monitor -> init: requset run hooks
 init -> init: run "createContainer"
 init -> init: `pivot_root`
-init -> init: start listening socket
 monitor <-- init: "hooks" result
-
+note over init
+wait start
+endnote
 cli <-- monitor: "hooks" result
 user <-- cli: done
 deactivate cli
 
+newpage
 
 user -> cli: run "start"
 activate cli
@@ -73,26 +86,19 @@ activate app
 init -> monitor : request run hooks
 monitor -> monitor: run "poststart"
 monitor --> init: "hooks" result
+note over monitor
+clear memory
+endnote
 cli <-- init: "start & hooks" result
+note over init
+clear memory
+endnote
 cli -> cli: update state
 
 ==running==
 
 user <-- cli: done
 deactivate cli
-
-app -> app: run
-
-note left
-At this time `pstree`
-on host will show
-someting like this:
-- monitor
-    - dbus proxy
-    - fuse
-    - init
-        - app
-end note
 
 user -> cli: run "kill"
 activate cli
@@ -106,6 +112,8 @@ deactivate app
 monitor <-- init: exit
 deactivate init
 monitor -> monitor: update state
+
+newpage
 
 ==stopped==
 

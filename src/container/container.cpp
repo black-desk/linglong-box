@@ -14,7 +14,6 @@
 
 #include "util/exception.h"
 #include "util/socket.h"
-#include "util/wait.h"
 
 namespace linglong {
 
@@ -91,35 +90,63 @@ Container::Monitor::Monitor(const std::filesystem::path &workingPath, std::uniqu
                             ? config->annotations->rootfs.value_or(OCI::Config::Annotations::Rootfs())
                             : OCI::Config::Annotations::Rootfs()))
 {
+    auto initPIDSockets = util::SocketPair();
+    auto createContainerSockets = util::SocketPair();
+    auto poststartSockets = util::SocketPair();
+
+    this->pid1->createContainerSocket = createContainerSockets.second;
+    this->pid1->poststartSocket = poststartSockets.second;
+    this->pid1->writeIDMappingSocket = initPIDSockets.second;
+
+    this->epoll.registerFD(initPIDSockets.first, EPOLLIN,
+                           std::bind(&Container::Monitor::handleInitPID, this, std::placeholders::_1));
+    this->epoll.registerFD(createContainerSockets.first, EPOLLIN,
+                           std::bind(&Container::Monitor::handleCreateContainer, this, std::placeholders::_1));
+    this->epoll.registerFD(poststartSockets.first, EPOLLIN,
+                           std::bind(&Container::Monitor::handlePoststart, this, std::placeholders::_1));
+}
+
+Container::PID1::~PID1()
+{
+    int ret = -1;
+
+    ret = close(this->createContainerSocket);
+    if (ret) {
+        spdlog::error("Failed to close createdContainer socket: {} ({})", strerror(errno), errno);
+    }
+
+    ret = close(this->poststartSocket);
+    if (ret) {
+        spdlog::error("Failed to close poststart socket: {} ({})", strerror(errno), errno);
+    }
+
+    ret = close(this->writeIDMappingSocket);
+    if (ret) {
+        spdlog::error("Failed to close writeIDMapping socket: {} ({})", strerror(errno), errno);
+    }
 }
 
 void Container::Monitor::run()
 {
     try {
-        this->init();
-
-        auto initPIDSockets = util::SocketPair();
-        auto createContainerSockets = util::SocketPair();
-        auto poststartSockets = util::SocketPair();
-
-        this->pid1->createContainerSocket = createContainerSockets.second;
-        this->pid1->poststartSocket = poststartSockets.second;
-        this->rootfs->initPIDSocket = initPIDSockets.second;
-
-        this->rootfs->setup(this);
-
-
         int ret = -1;
 
-        ret = close(createContainerSockets.second);
+        // TODO: maybe setup systemd scope?
+
+        auto pid = getpid();
+        ret = setpgid(pid, pid);
         if (ret) {
-            spdlog::error("Failed to close createdContainer socket: {} ({})", strerror(errno), errno);
+            spdlog::warn("Failed to setpgid: {} ({})", std::strerror(errno), errno);
         }
 
-        ret = close(createContainerSockets.second);
+        ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
         if (ret) {
-            spdlog::error("Failed to close createdContainer socket: {} ({})", strerror(errno), errno);
+            spdlog::warn("Failed to set CHILD_SUBREAPER");
         }
+
+        this->initSignalHandler();
+
+        this->rootfs->run();
 
     } catch (const util::RuntimeError &e) {
         std::stringstream s;
@@ -133,24 +160,6 @@ void Container::Monitor::run()
     exit(-1);
 }
 
-void Container::Monitor::init()
-{
-    int ret = -1;
-
-    auto pid = getpid();
-    ret = setpgid(pid, pid);
-    if (ret) {
-        spdlog::warn("Failed to setpgid: {} ({})", std::strerror(errno), errno);
-    }
-
-    ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
-    if (ret) {
-        spdlog::warn("Failed to set CHILD_SUBREAPER");
-    }
-
-    this->initSignalHandler();
-}
-
 void Container::Monitor::initSignalHandler()
 {
     // TODO:
@@ -159,7 +168,7 @@ void Container::Monitor::initSignalHandler()
 }
 
 Container::Rootfs::Rootfs(const OCI::Config::Annotations::Rootfs &config)
-    : cloneFlag(CLONE_VFORK | CLONE_NEWUSER | CLONE_NEWNS | SIGCHLD)
+    : cloneFlag(CLONE_NEWUSER | CLONE_NEWNS | SIGCHLD)
     , stackSize(1024 * 1024)
 {
 }

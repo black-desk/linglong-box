@@ -9,6 +9,7 @@
 
 #include "oci/config.h"
 #include "oci/runtime.h"
+#include "util/epoll.h"
 
 namespace linglong {
 class Container
@@ -46,10 +47,15 @@ private:
                 int hookSocket);
 
         void run();
-        void init();
+
         void initSignalHandler();
 
+        void handleInitPID(const epoll_event &ev);
+        void handleCreateContainer(const epoll_event &ev);
+        void handlePoststart(const epoll_event &ev);
+
         std::filesystem::path workingPath;
+        util::Epoll epoll;
         std::unique_ptr<PID1> pid1;
         std::unique_ptr<Rootfs> rootfs;
     };
@@ -57,20 +63,24 @@ private:
     struct Rootfs {
         Rootfs(const OCI::Config::Annotations::Rootfs &config);
         void allocateStack();
-        void setup(PID1& pid1);
+        void setup(PID1 &pid1);
 
         int cloneFlag;
         int stackSize;
         void *stackTop;
-        int initPIDSocket;
     };
 
     struct PID1 {
         PID1(const OCI::Config &config, const std::filesystem::path &socketAddress);
+        ~PID1();
         void Listen();
 
+        int cloneFlag;
+        int stackSize;
+        void *stackTop;
         int createContainerSocket;
         int poststartSocket;
+        int writeIDMappingSocket;
     };
 
     std::unique_ptr<Monitor> monitor;
