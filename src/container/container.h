@@ -9,7 +9,6 @@
 
 #include "oci/config.h"
 #include "oci/runtime.h"
-#include "util/epoll.h"
 
 namespace linglong {
 class Container
@@ -50,12 +49,7 @@ private:
 
         void initSignalHandler();
 
-        void handleInitPID(const epoll_event &ev);
-        void handleCreateContainer(const epoll_event &ev);
-        void handlePoststart(const epoll_event &ev);
-
         std::filesystem::path workingPath;
-        util::Epoll epoll;
         std::unique_ptr<PID1> pid1;
         std::unique_ptr<Rootfs> rootfs;
     };

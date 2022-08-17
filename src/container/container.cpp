@@ -97,13 +97,6 @@ Container::Monitor::Monitor(const std::filesystem::path &workingPath, std::uniqu
     this->pid1->createContainerSocket = createContainerSockets.second;
     this->pid1->poststartSocket = poststartSockets.second;
     this->pid1->writeIDMappingSocket = initPIDSockets.second;
-
-    this->epoll.registerFD(initPIDSockets.first, EPOLLIN,
-                           std::bind(&Container::Monitor::handleInitPID, this, std::placeholders::_1));
-    this->epoll.registerFD(createContainerSockets.first, EPOLLIN,
-                           std::bind(&Container::Monitor::handleCreateContainer, this, std::placeholders::_1));
-    this->epoll.registerFD(poststartSockets.first, EPOLLIN,
-                           std::bind(&Container::Monitor::handlePoststart, this, std::placeholders::_1));
 }
 
 Container::PID1::~PID1()

@@ -13,7 +13,6 @@ participant init
 participant app
 end box
 
-
 user -> cli: run "create"
 activate cli
 cli -> cli: parse config.json
