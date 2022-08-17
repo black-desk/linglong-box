@@ -21,9 +21,7 @@ int main(int argc, char **argv)
 
     if (argc >= 2) {
         std::string command = argv[1];
-        if (command == "---") {
-            cmd = create;
-        } else if (command == "create") {
+        if (command == "create") {
             cmd = create;
         } else if (command == "start") {
             cmd = start;
