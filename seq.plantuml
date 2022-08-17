@@ -23,31 +23,31 @@ cli -> cli: update state
 
 ==creating==
 
-cli ->> monitor: fork
+{start1} cli ->> monitor: fork
 activate monitor
+monitor -> monitor: create systemd scope
 monitor -> monitor: prctl **PR_SET_CHILD_SUBREAPER**
-{start} monitor -> rootfs: clone & vfork
-
+monitor ->> rootfs: clone
 activate rootfs
+monitor -> monitor: start epoll
+
 group prepare rootfs
 rootfs -> rootfs: setup user namespace
 rootfs -> rootfs: do native mounts
 rootfs -> rootfs: setup fuse
 rootfs -> rootfs: setup dbus-proxy
 end
+
 rootfs -> init: clone
 activate init
-init -> init: setup container
-
-rootfs <-- init: "create" result
-
-{end} monitor <-- rootfs: init pid
-
-{start} <-> {end}: **blocked**
-
 deactivate rootfs
-
-cli <-- monitor: "create" result
+monitor <- init: requset write ID mapping
+monitor -> monitor: setup ID mapping
+monitor --> init: done
+init -> init: setup container
+monitor <-- init: "create" result
+{end1} cli <-- monitor: "create" result
+{start1} <-> {end1}: **blocked**
 cli -> cli: update state
 
 ==created==
@@ -58,10 +58,7 @@ init -> init: run "createContainer"
 init -> init: `pivot_root`
 init -> init: start listening socket
 monitor <-- init: "hooks" result
-note over monitor
-start waiting
-init to exit
-end note
+
 cli <-- monitor: "hooks" result
 user <-- cli: done
 deactivate cli
