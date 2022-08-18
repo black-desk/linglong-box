@@ -1,7 +1,7 @@
 @startuml ll-box
 
 actor user
-participant cli
+participant "cli / library" as cli
 participant monitor
 
 box "rootfs namespaces"
@@ -20,10 +20,11 @@ cli -> cli: update state
 
 ==creating==
 
-cli ->> monitor: fork
+cli -> monitor: fork
 activate monitor
 monitor -> monitor: create systemd scope
 monitor -> monitor: prctl **PR_SET_CHILD_SUBREAPER**
+monitor -> monitor: setup signal handler
 monitor ->> rootfs: clone
 activate rootfs
 
@@ -32,8 +33,6 @@ monitor <- rootfs: requset write ID mapping
 monitor -> monitor: setup ID mapping
 monitor --> rootfs: done
 end
-
-newpage
 
 group prepare rootfs
 rootfs -> rootfs: do native mounts
@@ -54,44 +53,35 @@ end
 deactivate rootfs
 
 init -> init: setup container
+init -> init: setup signal handler
 monitor <-- init: "create" result
-cli <-- monitor: "create" result
-cli -> cli: update state
+monitor -> monitor: update state
 ==created==
-newpage
-
 
 monitor -> monitor: run "prestart"
 monitor -> monitor: run "createRuntime"
 monitor -> init: requset run hooks
 init -> init: run "createContainer"
 init -> init: `pivot_root`
-monitor <-- init: "hooks" result
-note over init
-wait start
-endnote
-cli <-- monitor: "hooks" result
+cli <-- init: "hooks" result
 user <-- cli: done
 deactivate cli
 
-newpage
-
 user -> cli: run "start"
 activate cli
-cli -> init: start process
+cli -> init: "start" over unix socket
 init -> init: run "startContainer"
-init -> app: fork & exec
+init -> init: setup signal handler
+init ->> app: fork & exec
 activate app
 init -> monitor : request run hooks
 monitor -> monitor: run "poststart"
 monitor --> init: "hooks" result
-note over monitor
-clear memory
+note over monitor, init
+exec self to clear memory
 endnote
+init->init: start listen socket
 cli <-- init: "start & hooks" result
-note over init
-clear memory
-endnote
 cli -> cli: update state
 
 ==running==
@@ -99,26 +89,37 @@ cli -> cli: update state
 user <-- cli: done
 deactivate cli
 
-user -> cli: run "kill"
+user -> cli: run "exec"
 activate cli
-cli -> init: kill
+cli -> init: request "exec" over socket
+init ->> app: fork & exec
+activate app
+init <-- app: exit
+deactivate app
+cli <-- init: "exec" result
 user <-- cli: done
 deactivate cli
 
+user -> cli: run "kill"
+activate cli
+cli -> init: kill
 init -> app: kill
 init <-- app: exit
 deactivate app
-monitor <-- init: exit
+note left
+all child exit
+endnote
+cli <-- init: exit
 deactivate init
-monitor -> monitor: update state
-
-newpage
-
+cli -> cli: update state
 ==stopped==
+user <-- cli: done
+deactivate cli
+
 
 user -> cli: run "delete"
 activate cli
-cli -> monitor: kill
+cli -> monitor: terminate
 monitor -> monitor: run "poststop"
 monitor -> monitor: release rootfs
 cli <-- monitor: exit
