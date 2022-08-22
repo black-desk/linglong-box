@@ -1,4 +1,3 @@
-#include "config.h"
 
 using linglong::OCI::Config;
 

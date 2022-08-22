@@ -34,7 +34,6 @@ public:
     std::filesystem::path workingPath;
     std::filesystem::path bundlePath;
     Option option;
-    const bool isRef;
 
 private:
     int hooksSocket;
