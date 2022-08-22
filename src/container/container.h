@@ -19,13 +19,14 @@ public:
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
-              const std::filesystem::path &workingPath, const Option &option = Option());
+              const std::filesystem::path &workingPath, int createContainerSocket, const Option &option = Option());
     void Create();
     void Start();
     void Kill();
     void Exec(const OCI::Config::Process &p);
 
-    void waitCreateHooks();
+    void runCreateHooks();
+    void detach();
 
     struct OCI::Runtime::State state;
     std::string ID;

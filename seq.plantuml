@@ -54,16 +54,20 @@ deactivate rootfs
 
 init -> init: setup container
 init -> init: setup signal handler
-monitor <-- init: "create" result
-monitor -> monitor: update state
+cli <-- init: "create" result
+cli -> cli: update state
 ==created==
+
+cli -> monitor: request run hooks
 
 monitor -> monitor: run "prestart"
 monitor -> monitor: run "createRuntime"
 monitor -> init: requset run hooks
 init -> init: run "createContainer"
+init->init: start listen socket
 init -> init: `pivot_root`
-cli <-- init: "hooks" result
+monitor <-- init: "hooks" result
+cli <-- monitor: "hooks" result
 user <-- cli: done
 deactivate cli
 
@@ -73,15 +77,18 @@ cli -> init: "start" over unix socket
 init -> init: run "startContainer"
 init -> init: setup signal handler
 init ->> app: fork & exec
+
 activate app
 init -> monitor : request run hooks
 monitor -> monitor: run "poststart"
 monitor --> init: "hooks" result
+cli <-- init: "start & hooks" result
+
 note over monitor, init
 exec self to clear memory
+&& setup signal handler
 endnote
-init->init: start listen socket
-cli <-- init: "start & hooks" result
+
 cli -> cli: update state
 
 ==running==

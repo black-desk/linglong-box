@@ -12,6 +12,7 @@
 #include "util/filesystem.h"
 #include "util/lock.h"
 #include "container/container.h"
+#include "util/socket.h"
 
 namespace linglong {
 namespace OCI {
@@ -40,6 +41,7 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         }
 
         std::unique_ptr<Container> container;
+        auto createContainerSockets = util::SocketPair();
 
         {
             auto guard = FlockGuard(this->workingDir);
@@ -59,7 +61,8 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             nlohmann::json configJson;
             configJsonFile >> configJson;
 
-            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir));
+            container.reset(
+                new Container(containerID, bundle, configJson, containerWorkingDir, createContainerSockets.second));
 
             this->updateState(containerWorkingDir, container->state);
         }
@@ -71,12 +74,12 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             this->updateState(containerWorkingDir, container->state);
         }
 
-        container->waitCreateHooks();
+        container->runCreateHooks();
 
     } catch (const std::runtime_error &e) {
+        auto guard = FlockGuard(this->workingDir);
         rmrf(containerWorkingDir);
         auto msg = fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle);
-
         std::throw_with_nested(std::runtime_error(msg.c_str()));
     }
 }

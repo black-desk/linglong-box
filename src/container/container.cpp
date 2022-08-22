@@ -38,42 +38,41 @@ void Container::Create()
         throw util::RuntimeError(fmt::format("Cannot call create on a container reference."));
     }
 
-    auto createSockets = util::SocketPair();
-    auto hooksSockets = util::SocketPair();
+    auto createdSockets = util::SocketPair();
+    auto createHooksSockets = util::SocketPair();
 
-    this->monitor.reset(
-        new Monitor(this->workingPath, std::move(this->config), createSockets.second, hooksSockets.second));
     int monitorPID = fork();
     if (monitorPID) { // parent
         int ret;
 
-        ret = close(createSockets.second);
+        ret = close(createdSockets.second);
         if (ret) {
             spdlog::error("Failed to close created message socket: {} ({})", strerror(errno), errno);
         }
 
-        ret = close(hooksSockets.second);
+        ret = close(createHooksSockets.second);
         if (ret) {
             spdlog::error("Failed to close create hooks message socket: {} ({})", strerror(errno), errno);
         }
 
-        util::Socket(createSockets.first) >> ret;
+        util::Socket(createdSockets.first) >> ret;
 
         if (ret != 0) {
             throw util::RuntimeError(fmt::format("Failed to create container (ID=\"{}\")", this->ID));
         }
 
-        this->hooksSocket = hooksSockets.first;
+        this->hooksSocket = createHooksSockets.first;
 
         return;
 
     } else { // child
-        this->monitor->run(); // NOTE: should not return
+        this->monitor.reset(new Monitor(this->workingPath, std::move(this->config), createdSockets.second,
+                                        createHooksSockets.second)); // NOTE: should not return
         exit(-1);
     }
 }
 
-void Container::waitCreateHooks()
+void Container::runCreateHooks()
 {
     int ret = -1;
     util::Socket(hooksSocket) >> ret;
