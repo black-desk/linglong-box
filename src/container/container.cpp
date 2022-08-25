@@ -13,12 +13,21 @@
 #include "container.h"
 
 #include "util/exception.h"
-#include "util/socket.h"
+#include "util/sync.h"
+
+static void configIDMapping(pid_t target,
+                            const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &uidMappings,
+                            const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &gidMappings)
+{
+    // TODO:
+}
+
+static void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
+{
+    // TODO:
+}
 
 namespace linglong {
-
-static int doCreate(void *arg);
-
 Container::Container(const std::string &containerID, const std::filesystem::path &bundle,
                      const nlohmann::json &configJson, const std::filesystem::path &workingPath,
                      int createContainerSocket, const Option &option)
@@ -26,6 +35,9 @@ Container::Container(const std::string &containerID, const std::filesystem::path
     , workingPath(workingPath)
     , bundlePath(bundle)
     , option(option)
+    , monitor(new Monitor(this))
+    , rootfs(new Rootfs(this))
+    , init(new Init(this))
 {
     this->config.reset(new OCI::Config);
     configJson.get_to(*this->config.get());
@@ -34,107 +46,62 @@ Container::Container(const std::string &containerID, const std::filesystem::path
 
 void Container::Create()
 {
-    auto createdSockets = util::SocketPair();
-    auto createHooksSockets = util::SocketPair();
-
-    int monitorPID = fork();
-    if (monitorPID) { // parent
-        int ret;
-
-        ret = close(createdSockets.second);
-        if (ret) {
-            spdlog::error("Failed to close created message socket: {} ({})", strerror(errno), errno);
-        }
-
-        ret = close(createHooksSockets.second);
-        if (ret) {
-            spdlog::error("Failed to close create hooks message socket: {} ({})", strerror(errno), errno);
-        }
-
-        util::Socket(createdSockets.first) >> ret;
-
-        if (ret != 0) {
-            throw util::RuntimeError(fmt::format("Failed to create container (ID=\"{}\")", this->ID));
-        }
-
-        this->hooksSocket = createHooksSockets.first;
-
-        return;
-
-    } else { // child
-        this->monitor.reset(new Monitor(this->workingPath, std::move(this->config), createdSockets.second,
-                                        createHooksSockets.second)); // NOTE: should not return
-        exit(-1);
+    if (!this->monitor->pid) {
+        this->monitor->run();
+    } else {
+        throw util::RuntimeError(fmt::format("container already started"));
     }
+    return;
 }
 
-void Container::runCreateHooks()
+Container::Monitor::Monitor(const Container *const container)
+    : container(container)
 {
-    int ret = -1;
-    util::Socket(hooksSocket) >> ret;
-    if (ret != 0) {
-        throw util::RuntimeError(fmt::format("Failed to run create hooks for container (ID=\"{}\")", this->ID));
-    }
-}
-
-Container::Monitor::Monitor(const std::filesystem::path &workingPath, std::unique_ptr<OCI::Config> config,
-                            int createSocket, int hookSocket)
-    : workingPath(workingPath)
-    , pid1(new PID1(*config, this->workingPath / "socket"))
-    , rootfs(new Rootfs(config->annotations.has_value()
-                            ? config->annotations->rootfs.value_or(OCI::Config::Annotations::Rootfs())
-                            : OCI::Config::Annotations::Rootfs()))
-{
-    auto initPIDSockets = util::SocketPair();
-    auto createContainerSockets = util::SocketPair();
-    auto poststartSockets = util::SocketPair();
-
-    this->pid1->createContainerSocket = createContainerSockets.second;
-    this->pid1->poststartSocket = poststartSockets.second;
-    this->pid1->writeIDMappingSocket = initPIDSockets.second;
-}
-
-Container::PID1::~PID1()
-{
-    int ret = -1;
-
-    ret = close(this->createContainerSocket);
-    if (ret) {
-        spdlog::error("Failed to close createdContainer socket: {} ({})", strerror(errno), errno);
-    }
-
-    ret = close(this->poststartSocket);
-    if (ret) {
-        spdlog::error("Failed to close poststart socket: {} ({})", strerror(errno), errno);
-    }
-
-    ret = close(this->writeIDMappingSocket);
-    if (ret) {
-        spdlog::error("Failed to close writeIDMapping socket: {} ({})", strerror(errno), errno);
-    }
+    // TODO
 }
 
 void Container::Monitor::run()
 {
+    int monitorPID = fork();
+    if (monitorPID) { // parent
+        this->pid = monitorPID;
+        return;
+    }
+
     try {
-        int ret = -1;
+        spdlog::debug("monitor: start");
+        init();
 
-        // TODO: maybe setup systemd scope?
+        auto &rootfs = *this->container->rootfs;
+        const auto &rootfsConfig = *this->container->config->annotations->rootfs;
+        int msg;
 
-        auto pid = getpid();
-        ret = setpgid(pid, pid);
-        if (ret) {
-            spdlog::warn("Failed to setpgid: {} ({})", std::strerror(errno), errno);
+        rootfs.run();
+
+        spdlog::debug("monitor: waiting write id mapping request from rootfs");
+        rootfs.sync >> msg;
+        spdlog::debug("monitor: done");
+
+        configIDMapping(rootfs.pid, rootfsConfig.uidMappings, rootfsConfig.gidMappings);
+
+
+
+        const auto &config = *this->container->config;
+
+        spdlog::debug("monitor: waiting run hooks request from runtime");
+        sync >> msg;
+        spdlog::debug("monitor: done");
+
+        if (config.hooks->createRuntime.has_value()) {
+            for (const auto &hook : config.hooks->createRuntime.value()) {
+                execHook(hook);
+            }
         }
 
-        ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
-        if (ret) {
-            spdlog::warn("Failed to set CHILD_SUBREAPER");
-        }
-
-        this->initSignalHandler();
-
-        this->rootfs->run();
+        container->init->sync << 1;
+        spdlog::debug("monitor: wait init to finish createContainer");
+        container->init->sync >> msg;
+        spdlog::debug("monitor: done");
 
     } catch (const util::RuntimeError &e) {
         std::stringstream s;
@@ -148,8 +115,25 @@ void Container::Monitor::run()
     exit(-1);
 }
 
-void Container::Monitor::initSignalHandler()
+void Container::Monitor::init()
 {
+    int ret = -1;
+
+    // TODO: setup systemd scope
+
+    auto pid = getpid();
+    ret = setpgid(pid, pid);
+    if (ret) {
+        spdlog::warn("Failed to setpgid: {} ({})", std::strerror(errno), errno);
+    }
+
+    ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
+    if (ret) {
+        spdlog::warn("Failed to set CHILD_SUBREAPER");
+    }
+
+    this->initSignalHandler();
+
     // TODO:
     // 1. block signal will be listen by signalfd later like SIGCHLD.
     // 2. register signal handler for other signal.
@@ -165,7 +149,7 @@ static int _(void *arg)
 {
 }
 
-void Container::Rootfs::setup(PID1 &pid1)
+void Container::Rootfs::setup(Init &pid1)
 {
     this->allocateStack();
     this->createNamespaces();

@@ -8,6 +8,7 @@
 #include "nlohmann/json.hpp"
 #include "runtime.h"
 
+#include "spdlog/spdlog.h"
 #include "util/exception.h"
 #include "util/filesystem.h"
 #include "util/lock.h"
@@ -41,7 +42,6 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         }
 
         std::unique_ptr<Container> container;
-        auto createContainerSockets = util::SocketPair();
 
         {
             auto guard = FlockGuard(this->workingDir);
@@ -61,8 +61,7 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             nlohmann::json configJson;
             configJsonFile >> configJson;
 
-            container.reset(
-                new Container(containerID, bundle, configJson, containerWorkingDir, createContainerSockets.second));
+            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, 1));
 
             this->updateState(containerWorkingDir, container->state);
         }
@@ -70,12 +69,31 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         container->Create();
 
         {
+            int msg = 0;
+            spdlog::debug("runtime: wait init to send create result");
+            container->sync >> msg;
+            spdlog::debug("runtime: done");
+            if (msg != 0) {
+                throw util::RuntimeError("Failed to create container");
+            }
+        }
+
+        {
             auto guard = FlockGuard(this->workingDir);
             this->updateState(containerWorkingDir, container->state);
         }
 
-        container->runCreateHooks();
+        container->monitor->sync << 1; // request run "createRuntime"
 
+        {
+            int msg = 0;
+            spdlog::debug("runtime: wait monitor to report hooks result");
+            container->monitor->sync >> msg;
+            spdlog::debug("runtime: done");
+            if (msg != 0) {
+                throw util::RuntimeError("Failed to pivot_root, maybe hooks failed");
+            }
+        }
     } catch (const std::runtime_error &e) {
         auto guard = FlockGuard(this->workingDir);
         rmrf(containerWorkingDir);

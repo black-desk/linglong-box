@@ -54,6 +54,7 @@ void Config::parse(const std::filesystem::path &bundlePath)
     {
         if (this->hooks.has_value()) {
             spdlog::warn("\"hooks\" not support yet");
+            // TODO: merge prestart and createRuntime
         }
     }
 

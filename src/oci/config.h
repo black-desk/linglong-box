@@ -284,7 +284,7 @@ struct Config {
 
         User user;
 
-        void parse(const std::filesystem::path& bundlePath);
+        void parse(const std::filesystem::path &bundlePath);
     };
 
     // POSIX https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#posix-platform-hooks
@@ -313,7 +313,7 @@ struct Config {
 
     // https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#annotations
     struct Annotations {
-        // NOT STANDARD TODO: Document
+        // TODO: Document
         struct Rootfs {
             struct Overlayfs {
                 std::filesystem::path lowerParent;
@@ -337,6 +337,9 @@ struct Config {
             std::optional<Native> native;
 
             std::optional<std::vector<DBus>> dbus;
+
+            std::optional<std::vector<IDMapping>> uidMappings;
+            std::optional<std::vector<IDMapping>> gidMappings;
         };
 
         std::optional<Rootfs> rootfs; // NOT STANDER
@@ -358,7 +361,7 @@ struct Config {
         Type type;
         std::optional<std::filesystem::path> path;
 
-        void parse(const std::filesystem::path& bundlePath);
+        void parse(const std::filesystem::path &bundlePath);
     };
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md#devices
@@ -673,7 +676,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::Ove
                                                 mounts);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::Native, mounts);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::DBus, host, container, config);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs, overlayfs, native, dbus);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs, overlayfs, native, dbus, uidMappings,
+                                                gidMappings);
 
 inline void to_json(nlohmann::json &j, const Config::Annotations &a)
 {

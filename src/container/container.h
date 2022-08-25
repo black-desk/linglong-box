@@ -9,6 +9,7 @@
 
 #include "oci/config.h"
 #include "oci/runtime.h"
+#include "util/sync.h"
 
 namespace linglong {
 class Container
@@ -16,17 +17,54 @@ class Container
 public:
     struct Option {
         bool ProcessAsEntrypoint;
+        bool EnableHooks;
+        bool SetupSystemdScope;
+    };
+
+    struct Monitor {
+        Monitor(const Container *const container);
+        void run();
+
+        const Container *const container;
+        util::Pipe sync;
+        pid_t pid;
+
+        void init();
+    };
+
+    struct Rootfs {
+        Rootfs(const Container *const container);
+        void run();
+        pid_t pid;
+
+        const Container *const container;
+        util::Pipe sync;
+
+        int cloneFlag;
+        int stackSize;
+        void *stackTop;
+    };
+
+    struct Init {
+        Init(const Container *const container);
+        void run();
+        pid_t pid;
+
+        const Container *const container;
+        util::Pipe sync;
+
+        int cloneFlag;
+        int stackSize;
+        void *stackTop;
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
-              const std::filesystem::path &workingPath, int createContainerSocket, const Option &option = Option());
+              const std::filesystem::path &workingPath, int sync, const Option &option = Option());
+
     void Create();
     void Start();
     void Kill();
     void Exec(const OCI::Config::Process &p);
-
-    void runCreateHooks();
-    void detach();
 
     struct OCI::Runtime::State state;
     std::string ID;
@@ -35,49 +73,11 @@ public:
     std::filesystem::path bundlePath;
     Option option;
 
-private:
-    int hooksSocket;
-
-    struct Rootfs;
-    struct PID1;
-
-    struct Monitor {
-        Monitor(const std::filesystem::path &workingPath, std::unique_ptr<OCI::Config>, int createSocket,
-                int hookSocket);
-
-        void run();
-
-        void initSignalHandler();
-
-        std::filesystem::path workingPath;
-        std::unique_ptr<PID1> pid1;
-        std::unique_ptr<Rootfs> rootfs;
-    };
-
-    struct Rootfs {
-        Rootfs(const OCI::Config::Annotations::Rootfs &config);
-        void allocateStack();
-        void setup(PID1 &pid1);
-
-        int cloneFlag;
-        int stackSize;
-        void *stackTop;
-    };
-
-    struct PID1 {
-        PID1(const OCI::Config &config, const std::filesystem::path &socketAddress);
-        ~PID1();
-        void Listen();
-
-        int cloneFlag;
-        int stackSize;
-        void *stackTop;
-        int createContainerSocket;
-        int poststartSocket;
-        int writeIDMappingSocket;
-    };
+    util::Pipe sync;
 
     std::unique_ptr<Monitor> monitor;
+    std::unique_ptr<Rootfs> rootfs;
+    std::unique_ptr<Init> init;
 };
 } // namespace linglong
 
