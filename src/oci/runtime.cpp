@@ -83,15 +83,15 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             this->updateState(containerWorkingDir, container->state);
         }
 
-        container->monitor->sync << 1; // request run "createRuntime"
+        container->monitor->sync << 0; // request run "createRuntime"
 
         {
             int msg = 0;
             spdlog::debug("runtime: wait monitor to report hooks result");
-            container->monitor->sync >> msg;
+            container->sync >> msg;
             spdlog::debug("runtime: done");
             if (msg != 0) {
-                throw util::RuntimeError("Failed to pivot_root, maybe hooks failed");
+                throw util::RuntimeError("Error during waitting hooks finish");
             }
         }
     } catch (const std::runtime_error &e) {

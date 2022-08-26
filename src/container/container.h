@@ -22,22 +22,22 @@ public:
     };
 
     struct Monitor {
-        Monitor(const Container *const container);
+        Monitor(Container *const container);
         void run();
 
-        const Container *const container;
+        Container *const container;
         util::Pipe sync;
         pid_t pid;
 
-        void init();
+        void init(pid_t ppid) noexcept;
     };
 
     struct Rootfs {
-        Rootfs(const Container *const container);
+        Rootfs(Container *const container);
         void run();
         pid_t pid;
 
-        const Container *const container;
+        Container *const container;
         util::Pipe sync;
 
         int cloneFlag;
@@ -46,11 +46,11 @@ public:
     };
 
     struct Init {
-        Init(const Container *const container);
+        Init(Container *const container);
         void run();
         pid_t pid;
 
-        const Container *const container;
+        Container *const container;
         util::Pipe sync;
 
         int cloneFlag;

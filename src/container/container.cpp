@@ -27,6 +27,23 @@ static void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
     // TODO:
 }
 
+static void makeSureParentSurvive(pid_t ppid) noexcept
+{
+    int ret = -1;
+    ret = prctl(PR_SET_PDEATHSIG, SIGTERM);
+    if (ret) {
+        spdlog::warn("Failed to set PDEATHSIG: {}", strerror(errno));
+    }
+    if (getppid() != ppid) {
+        spdlog::error("Parent has died, exit now");
+        exit(-1);
+    }
+}
+
+static void ignoreParentDie()
+{
+}
+
 namespace linglong {
 Container::Container(const std::string &containerID, const std::filesystem::path &bundle,
                      const nlohmann::json &configJson, const std::filesystem::path &workingPath,
@@ -54,24 +71,25 @@ void Container::Create()
     return;
 }
 
-Container::Monitor::Monitor(const Container *const container)
+Container::Monitor::Monitor(Container *const container)
     : container(container)
 {
-    // TODO
+    // TODO:
 }
 
 void Container::Monitor::run()
 {
+    int ppid = getppid();
     int monitorPID = fork();
     if (monitorPID) { // parent
         this->pid = monitorPID;
         return;
     }
 
-    try {
-        spdlog::debug("monitor: start");
-        init();
+    spdlog::debug("monitor: start");
+    init(ppid);
 
+    try {
         auto &rootfs = *this->container->rootfs;
         const auto &rootfsConfig = *this->container->config->annotations->rootfs;
         int msg;
@@ -79,18 +97,24 @@ void Container::Monitor::run()
         rootfs.run();
 
         spdlog::debug("monitor: waiting write id mapping request from rootfs");
-        rootfs.sync >> msg;
+        this->sync >> msg;
         spdlog::debug("monitor: done");
+        if (msg) {
+            throw util::RuntimeError(fmt::format("monitor: Error while waiting write id mapping request from rootfs"));
+        }
 
         configIDMapping(rootfs.pid, rootfsConfig.uidMappings, rootfsConfig.gidMappings);
 
-
+        rootfs.sync << 0;
 
         const auto &config = *this->container->config;
 
         spdlog::debug("monitor: waiting run hooks request from runtime");
-        sync >> msg;
+        this->sync >> msg;
         spdlog::debug("monitor: done");
+        if (msg) {
+            throw util::RuntimeError(fmt::format("monitor: Error while waiting run hooks request from runtime"));
+        }
 
         if (config.hooks->createRuntime.has_value()) {
             for (const auto &hook : config.hooks->createRuntime.value()) {
@@ -98,10 +122,20 @@ void Container::Monitor::run()
             }
         }
 
-        container->init->sync << 1;
-        spdlog::debug("monitor: wait init to finish createContainer");
-        container->init->sync >> msg;
+        container->init->sync << 0;
+        spdlog::debug("monitor: waiting init to finish createContainer");
+        this->sync >> msg;
         spdlog::debug("monitor: done");
+
+        if (msg) {
+            throw util::RuntimeError(fmt::format(
+                "Failed to create container (name=\"{}\", bundle=\"{}\"): error during waiting createContainer hook",
+                this->container->ID, this->container->bundlePath));
+        }
+
+        container->sync << 0;
+
+        spdlog::debug("monitor: waiting init to request run poststart");
 
     } catch (const util::RuntimeError &e) {
         std::stringstream s;
@@ -112,12 +146,20 @@ void Container::Monitor::run()
     } catch (...) {
         spdlog::error("Unhanded exception during container monitor running");
     }
+
+    container->sync << 1;
+    container->rootfs->sync << 1;
+    container->init->sync << 1;
     exit(-1);
 }
 
-void Container::Monitor::init()
+void Container::Monitor::init(pid_t ppid) noexcept
 {
     int ret = -1;
+
+    // TODO: setup signal handlers
+
+    makeSureParentSurvive(ppid);
 
     // TODO: setup systemd scope
 
@@ -129,14 +171,8 @@ void Container::Monitor::init()
 
     ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
     if (ret) {
-        spdlog::warn("Failed to set CHILD_SUBREAPER");
+        spdlog::warn("Failed to set CHILD_SUBREAPER: {}", strerror(errno));
     }
-
-    this->initSignalHandler();
-
-    // TODO:
-    // 1. block signal will be listen by signalfd later like SIGCHLD.
-    // 2. register signal handler for other signal.
 }
 
 Container::Rootfs::Rootfs(const OCI::Config::Annotations::Rootfs &config)
