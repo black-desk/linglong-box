@@ -60,10 +60,19 @@ void Config::parse(const std::filesystem::path &bundlePath)
 
     {
         auto &namespaces = this->namespaces;
+        std::set<Namespace::Type> set;
 
         for (auto &ns : namespaces) {
+            if (set.find(ns.type) != set.end()) {
+                throw util::RuntimeError(
+                    fmt::format("config.json is not valid: namespace type \"{}\" duplicate", ns.type));
+            }
+            set.insert(ns.type);
             ns.parse(bundlePath);
         }
+
+        // TODO: make sure always unshare User and Mount
+
     }
 
     {

@@ -44,6 +44,8 @@ public:
         int cloneFlag;
         int stackSize;
         void *stackTop;
+
+        void init(pid_t ppid) noexcept;
     };
 
     struct Init {

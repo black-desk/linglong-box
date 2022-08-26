@@ -71,6 +71,17 @@ void Container::Create()
 {
     if (!this->monitor->pid) {
         this->monitor->run();
+
+        int msg = 0;
+        spdlog::debug("runtime: wait init to send create result");
+        this->sync >> msg;
+        spdlog::debug("runtime: done");
+        if (msg == -1) {
+            throw util::RuntimeError("Failed to create container");
+        } else {
+            this->state.pid = msg;
+            this->state.status = "created";
+        }
     } else {
         throw util::RuntimeError(fmt::format("container already started"));
     }
@@ -93,7 +104,7 @@ void Container::Monitor::run()
     }
 
     spdlog::debug("monitor: start");
-    init(ppid);
+    this->init(ppid);
 
     try {
         auto &rootfs = *this->container->rootfs;
@@ -151,6 +162,8 @@ void Container::Monitor::run()
             }
         }
 
+        ignoreParentDie();
+
         container->init->sync << 0;
 
         this->exec(); // NOTE: will not return
@@ -165,9 +178,9 @@ void Container::Monitor::run()
         spdlog::error("monitor: Unhanded exception during container monitor running");
     }
 
-    container->sync << 1;
-    container->rootfs->sync << 1;
-    container->init->sync << 1;
+    container->sync << -1;
+    container->rootfs->sync << -1;
+    container->init->sync << -1;
     exit(-1);
 }
 
@@ -211,9 +224,52 @@ void Container::Rootfs::run()
     int ppid = getppid();
     int rootfsPID = fork();
     if (rootfsPID) { // parent
-        this->pid = monitorPID;
+        this->pid = rootfsPID;
         return;
     }
+
+    spdlog::debug("rootfs: start");
+    this->init(ppid);
+
+    try {
+        int ret = -1;
+        ret = unshare(CLONE_NEWUSER | CLONE_NEWNS);
+        if (ret != 0) {
+            throw util::RuntimeError("Failed to unshare user and mount namespace");
+        }
+
+        container->monitor->sync << 0; // request monitor to write ID mapping
+
+        int msg = -1;
+        spdlog::debug("rootfs: waiting monitor to write ID mapping");
+        this->sync >> msg;
+        spdlog::debug("rootfs: done");
+        if (msg != 0) {
+            throw util::RuntimeError("Error during waiting monitor to write ID mapping");
+        }
+
+        
+
+        // TODO:
+    } catch (const util::RuntimeError &e) {
+        std::stringstream s;
+        util::printException(s, e);
+        spdlog::error("rootfs: Unhanded exception during rootfs preparer running: {}", s);
+    } catch (const std::exception &e) {
+        spdlog::error("rootfs: Unhanded exception during rootfs preparer running: {}", e.what());
+    } catch (...) {
+        spdlog::error("rootfs: Unhanded exception during rootfs preparer running");
+    }
+
+    container->sync << -1;
+    container->monitor->sync << -1;
+    container->init->sync << -1;
+    exit(-1);
+}
+
+void Container::Rootfs::init(pid_t ppid) noexcept
+{
+    makeSureParentSurvive(ppid);
 }
 
 void Container::Rootfs::allocateStack()

@@ -68,18 +68,6 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         container->Create();
 
         {
-            int msg = 0;
-            spdlog::debug("runtime: wait init to send create result");
-            container->sync >> msg;
-            spdlog::debug("runtime: done");
-            if (msg == -1) {
-                throw util::RuntimeError("Failed to create container");
-            } else {
-                container->state.pid = msg;
-            }
-        }
-
-        {
             auto guard = FlockGuard(this->workingDir);
             this->updateState(containerWorkingDir, container->state);
         }
