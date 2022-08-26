@@ -1,5 +1,3 @@
-
-
 #include <iostream>
 #include <unistd.h>
 #include <signal.h>
@@ -12,6 +10,7 @@
 
 #include "container.h"
 
+#include "nlohmann/json.hpp"
 #include "util/exception.h"
 #include "util/sync.h"
 
@@ -59,7 +58,14 @@ Container::Container(const std::string &containerID, const std::filesystem::path
     this->config.reset(new OCI::Config);
     configJson.get_to(*this->config.get());
     this->config->parse(bundlePath);
-}
+
+    this->state = {this->config->ociVersion,
+                   containerID,
+                   "creating",
+                   0,
+                   bundle,
+                   this->config->annotations.value_or(OCI::Config::Annotations()).raw};
+};
 
 void Container::Create()
 {
@@ -100,7 +106,7 @@ void Container::Monitor::run()
         this->sync >> msg;
         spdlog::debug("monitor: done");
         if (msg) {
-            throw util::RuntimeError(fmt::format("monitor: Error while waiting write id mapping request from rootfs"));
+            throw util::RuntimeError("Error while waiting write id mapping request from rootfs");
         }
 
         configIDMapping(rootfs.pid, rootfsConfig.uidMappings, rootfsConfig.gidMappings);
@@ -113,10 +119,10 @@ void Container::Monitor::run()
         this->sync >> msg;
         spdlog::debug("monitor: done");
         if (msg) {
-            throw util::RuntimeError(fmt::format("monitor: Error while waiting run hooks request from runtime"));
+            throw util::RuntimeError("Error during waiting run hooks request from runtime");
         }
 
-        if (config.hooks->createRuntime.has_value()) {
+        if (config.hooks.has_value() && config.hooks->createRuntime.has_value()) {
             for (const auto &hook : config.hooks->createRuntime.value()) {
                 execHook(hook);
             }
@@ -126,25 +132,37 @@ void Container::Monitor::run()
         spdlog::debug("monitor: waiting init to finish createContainer");
         this->sync >> msg;
         spdlog::debug("monitor: done");
-
         if (msg) {
-            throw util::RuntimeError(fmt::format(
-                "Failed to create container (name=\"{}\", bundle=\"{}\"): error during waiting createContainer hook",
-                this->container->ID, this->container->bundlePath));
+            throw util::RuntimeError("Error during waiting createContainer hook");
         }
 
         container->sync << 0;
 
         spdlog::debug("monitor: waiting init to request run poststart");
+        this->sync >> msg;
+        spdlog::debug("monitor: done");
+        if (msg) {
+            throw util::RuntimeError("Error during waiting request run poststart");
+        }
+
+        if (config.hooks.has_value() && config.hooks->poststart.has_value()) {
+            for (const auto &hook : config.hooks->poststart.value()) {
+                execHook(hook);
+            }
+        }
+
+        container->init->sync << 0;
+
+        this->exec(); // NOTE: will not return
 
     } catch (const util::RuntimeError &e) {
         std::stringstream s;
         util::printException(s, e);
-        spdlog::error("Unhanded exception during container monitor running: {}", s);
+        spdlog::error("monitor: Unhanded exception during container monitor running: {}", s);
     } catch (const std::exception &e) {
-        spdlog::error("Unhanded exception during container monitor running: {}", e.what());
+        spdlog::error("monitor: Unhanded exception during container monitor running: {}", e.what());
     } catch (...) {
-        spdlog::error("Unhanded exception during container monitor running");
+        spdlog::error("monitor: Unhanded exception during container monitor running");
     }
 
     container->sync << 1;
@@ -175,20 +193,27 @@ void Container::Monitor::init(pid_t ppid) noexcept
     }
 }
 
-Container::Rootfs::Rootfs(const OCI::Config::Annotations::Rootfs &config)
-    : cloneFlag(CLONE_NEWUSER | CLONE_NEWNS | SIGCHLD)
+void Container::Monitor::exec()
+{
+    // TODO:
+}
+
+Container::Rootfs::Rootfs(Container *const c)
+    : container(c)
+    , cloneFlag(CLONE_NEWUSER | CLONE_NEWNS | SIGCHLD)
     , stackSize(1024 * 1024)
 {
+    // TODO:
 }
 
-static int _(void *arg)
+void Container::Rootfs::run()
 {
-}
-
-void Container::Rootfs::setup(Init &pid1)
-{
-    this->allocateStack();
-    this->createNamespaces();
+    int ppid = getppid();
+    int rootfsPID = fork();
+    if (rootfsPID) { // parent
+        this->pid = monitorPID;
+        return;
+    }
 }
 
 void Container::Rootfs::allocateStack()

@@ -30,6 +30,7 @@ public:
         pid_t pid;
 
         void init(pid_t ppid) noexcept;
+        void exec();
     };
 
     struct Rootfs {

@@ -13,7 +13,6 @@
 #include "util/filesystem.h"
 #include "util/lock.h"
 #include "container/container.h"
-#include "util/socket.h"
 
 namespace linglong {
 namespace OCI {
@@ -35,13 +34,13 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
     auto bundle = std::filesystem::absolute(pathToBundle);
     auto containerWorkingDir = this->workingDir / containerID;
 
+    std::unique_ptr<Container> container;
+
     try {
         if (!mkdirp(this->workingDir, 0755)) {
             auto msg = fmt::format("Failed to create dir (path=\"{}\")", this->workingDir);
             throw std::runtime_error(msg.c_str());
         }
-
-        std::unique_ptr<Container> container;
 
         {
             auto guard = FlockGuard(this->workingDir);
@@ -73,8 +72,10 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             spdlog::debug("runtime: wait init to send create result");
             container->sync >> msg;
             spdlog::debug("runtime: done");
-            if (msg != 0) {
+            if (msg == -1) {
                 throw util::RuntimeError("Failed to create container");
+            } else {
+                container->state.pid = msg;
             }
         }
 
