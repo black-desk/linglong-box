@@ -79,6 +79,7 @@ public:
         char *stackTop;
 
         void init(pid_t ppid) noexcept;
+        void setupContainer();
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

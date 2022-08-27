@@ -48,6 +48,11 @@ void Container::Init::run()
                 throw util::RuntimeError("Error during waiting monitor to write ID mapping");
             }
 
+            this->setupContainer();
+
+            this->container->sync << getpid(); // FIXME:
+
+
         } catch (const util::RuntimeError &e) {
             std::stringstream s;
             util::printException(s, e);
