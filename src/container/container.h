@@ -12,6 +12,25 @@
 #include "util/sync.h"
 
 namespace linglong {
+
+void configIDMapping(pid_t target, const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &uidMappings,
+                     const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &gidMappings);
+void execHook(const linglong::OCI::Config::Hooks::Hook &hook);
+
+void makeSureParentSurvive(pid_t ppid) noexcept;
+
+void ignoreParentDie();
+
+int _(void *arg);
+
+std::string dbusProxyPath();
+
+std::string fuseOverlayfsPath();
+
+std::vector<std::string> environPassThrough();
+
+void doMount(const linglong::OCI::Config::Mount &);
+
 class Container
 {
 public:
@@ -41,11 +60,11 @@ public:
         Container *const container;
         util::Pipe sync;
 
-        int cloneFlag;
-        int stackSize;
-        void *stackTop;
+        int unshareFlag;
 
         void init(pid_t ppid) noexcept;
+        void exec();
+        void prepareRootfs();
     };
 
     struct Init {
@@ -57,8 +76,9 @@ public:
         util::Pipe sync;
 
         int cloneFlag;
-        int stackSize;
-        void *stackTop;
+        char *stackTop;
+
+        void init(pid_t ppid) noexcept;
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

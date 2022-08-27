@@ -316,10 +316,9 @@ struct Config {
         // TODO: Document
         struct Rootfs {
             struct Overlayfs {
-                std::filesystem::path lowerParent;
+                std::vector<std::filesystem::path> lower;
                 std::filesystem::path upper;
                 std::filesystem::path workdir;
-                std::vector<Config::Mount> mounts;
             };
 
             struct Native {
@@ -672,8 +671,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Process, terminal, conso
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Hooks::Hook, path, args, env, timeout);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Hooks, prestart, createRuntime, createContainer, startContainer,
                                                 poststart, poststop);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::Overlayfs, lowerParent, upper, workdir,
-                                                mounts);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::Overlayfs, lower, upper, workdir);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::Native, mounts);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::DBus, host, container, config);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs, overlayfs, native, dbus, uidMappings,
