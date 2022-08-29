@@ -2,6 +2,7 @@
 
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/mman.h>
 
 #include "container.h"
 #include "util/exception.h"
@@ -32,7 +33,26 @@ void Container::Init::init(pid_t ppid) noexcept
 
 void Container::Init::run()
 {
+    const auto &config = this->container->config;
     int ppid = getppid();
+
+    int cloneFlag = 0;
+    char *stack = nullptr;
+
+    for (const auto &ns : config->namespaces) {
+        if (!ns.path.has_value()) {
+            cloneFlag |= ns.type;
+        }
+    }
+
+    stack = (char *)mmap(NULL, this->container->option.StackSize, PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    if (stack == MAP_FAILED) {
+        throw util::RuntimeError(fmt::format("Failed to allocate stack for init: {}", strerror(errno)));
+    }
+
+    stack += this->container->option.StackSize;
+    char *&stackTop = stack;
 
     std::function<int()> lambda = [this, ppid]() -> int {
         spdlog::debug("init: start");
@@ -94,21 +114,65 @@ void Container::Init::run()
         return -1;
     };
 
-    int cloneFlag = 0;
-    char *stackTop = nullptr;
-
-    {
-        const auto &config = this->container->config;
-        for (const auto &ns : config->namespaces) {
-            
-        }
-    }
-
-    int initPID = clone(_, nullptr, this->cloneFlag, &lambda);
+    int initPID = clone(_, stackTop, cloneFlag, &lambda);
     if (initPID) { // parent
         this->pid = initPID;
         return;
     }
+}
+
+void Container::Init::setupContainer()
+{
+    this->setNS();
+    this->setMounts();
+    this->setCgroup();
+    this->setDevices();
+    this->setLink();
+}
+
+void Container::Init::setNS()
+{
+    const auto &nss = this->container->config->namespaces;
+    int ret = -1;
+    for (const auto &ns : nss) {
+        if (ns.path.has_value()) {
+            util::FD fd(open(ns.path->c_str(), O_RDONLY | O_CLOEXEC)); // FIXME: O_PATH?
+            ret = setns(fd.fd, ns.type);
+            if (ret == -1) {
+                throw util::RuntimeError(
+                    fmt::format("Failed to enter namespace {} (type={}): {}", ns.path, ns.type, strerror(errno)));
+            }
+        }
+    }
+}
+
+void Container::Init::setMounts()
+{
+    const auto &mounts = this->container->config->mounts.value_or(std::vector<OCI::Config::Mount>());
+    const auto &root = this->container->config->root.path;
+    for (const auto &mount : mounts) {
+        try {
+            doMount(mount, root);
+        } catch (const util::RuntimeError &e) {
+            if (this->container->option.IgnoreMountFail) {
+                std::stringstream s;
+                util::printException(s, e);
+                spdlog::error("init: {}", s);
+            } else {
+                throw e;
+            }
+        }
+    }
+}
+
+void Container::Init::setCgroup()
+{
+    return;
+    // TODO:
+}
+
+void Container::Init::setDevices()
+{
 }
 
 void Container::Init::pivotRoot()

@@ -84,7 +84,7 @@ void makeSureParentSurvive(pid_t ppid) noexcept
     }
 }
 
-void ignoreParentDie()
+void ignoreParentDie() noexcept
 {
 }
 

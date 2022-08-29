@@ -19,7 +19,7 @@ void execHook(const linglong::OCI::Config::Hooks::Hook &hook);
 
 void makeSureParentSurvive(pid_t ppid = 0) noexcept;
 
-void ignoreParentDie();
+void ignoreParentDie() noexcept;
 
 int _(void *arg);
 
@@ -38,6 +38,8 @@ public:
         bool ProcessAsEntrypoint;
         bool EnableHooks;
         bool SetupSystemdScope;
+        bool IgnoreMountFail;
+        uint StackSize;
     };
 
     struct Monitor {
@@ -79,6 +81,13 @@ public:
 
         void init(pid_t ppid) noexcept;
         void setupContainer();
+
+        void setNS();
+        void setMounts();
+        void setCgroup();
+        void setDevices();
+        void setLink();
+
         void pivotRoot();
         void listenUnixSocket();
     };

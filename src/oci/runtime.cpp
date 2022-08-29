@@ -60,7 +60,13 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             nlohmann::json configJson;
             configJsonFile >> configJson;
 
-            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, 1));
+            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, 1,
+                                          {
+                                              false,
+                                              false,
+                                              false,
+                                              (1024 * 1024),
+                                          }));
 
             this->updateState(containerWorkingDir, container->state);
         }

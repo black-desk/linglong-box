@@ -2,19 +2,6 @@
 
 using linglong::OCI::Config;
 
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::NotEqual = "SCMP_CMP_NE";
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::LessThan = "SCMP_CMP_LT";
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::LessThanOrEqual = "SCMP_CMP_LE";
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::Equal = "SCMP_CMP_EQ";
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::GreaterThanOrEqual =
-    "SCMP_CMP_GE";
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::GreaterThan = "SCMP_CMP_GT";
-const Config::Seccomp::Syscall::Argument::Operator Config::Seccomp::Syscall::Argument::MaskedEquality =
-    "SCMP_CMP_MASKED_EQ";
-
-const Config::Personality::Domain Config::Personality::Linux = "LINUX";
-const Config::Personality::Domain Config::Personality::Linux32 = "LINUX32";
-
 const Config::Mount::Type Config::Mount::Bind = "bind";
 const Config::Mount::Type Config::Mount::Proc = "proc";
 const Config::Mount::Type Config::Mount::Sysfs = "sysfs";

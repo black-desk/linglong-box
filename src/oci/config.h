@@ -574,16 +574,14 @@ struct Config {
         struct Syscall {
             struct Argument {
                 enum Operator {
-
+                    NotEqual = SCMP_CMP_NE,
+                    LessThan = SCMP_CMP_LT,
+                    LessThanOrEqual = SCMP_CMP_LE,
+                    Equal = SCMP_CMP_EQ,
+                    GreaterThanOrEqual = SCMP_CMP_GE,
+                    GreaterThan = SCMP_CMP_GE,
+                    MaskedEquality = SCMP_CMP_MASKED_EQ,
                 };
-
-                static const Operator NotEqual;
-                static const Operator LessThan;
-                static const Operator LessThanOrEqual;
-                static const Operator Equal;
-                static const Operator GreaterThanOrEqual;
-                static const Operator GreaterThan;
-                static const Operator MaskedEquality;
 
                 uint index;
                 uint64_t value;
@@ -613,10 +611,10 @@ struct Config {
     static const MountPropagation Unbindable;
 
     struct Personality {
-        typedef std::string Domain;
-
-        static const Domain Linux;
-        static const Domain Linux32;
+        enum Domain {
+            Linux,
+            Linux32,
+        };
 
         typedef std::string Flag;
 
@@ -674,19 +672,16 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::Nat
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs::DBus, host, container, config);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Annotations::Rootfs, overlayfs, native, dbus, uidMappings,
                                                 gidMappings);
-
 inline void to_json(nlohmann::json &j, const Config::Annotations &a)
 {
     j = a.raw;
     j["rootfs"] = a.rootfs;
 }
-
 inline void from_json(const nlohmann::json &j, Config::Annotations &a)
 {
     a.raw = j;
     j.at("rootfs").get_to(a.rootfs);
 }
-
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Namespace::Type, {
                                                           {Config::Namespace::Type::PID, "pid"},
                                                           {Config::Namespace::Type::Network, "network"},
@@ -696,15 +691,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Namespace::Type, {
                                                           {Config::Namespace::Type::User, "user"},
                                                           {Config::Namespace::Type::Cgroup, "cgroup"},
                                                       });
-
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Namespace, type, path);
-
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Device::Type, {
                                                        {Config::Device::Type::All, "a"},
                                                        {Config::Device::Type::Block, "b"},
                                                        {Config::Device::Type::Char, "c"},
                                                    });
-
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Device, type, path, major, minor, fileMode, uid, gid);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources::Device, allow, type, major, minor, access);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources::Memory, limit, reservation, swap, kernel, kernelTCP,
@@ -723,9 +715,18 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources::PIDs, limit);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources::RDMALimit, hcaHandles, hcaObjects);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources, devices, memory, cpu, blockIO, hugepageLimit,
                                                 network, pids, rdma);
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Syscall::Argument::Operator,
+                             {
+                                 {Config::Seccomp::Syscall::Argument::Operator::NotEqual, "SCMP_CMP_NE"},
+                                 {Config::Seccomp::Syscall::Argument::Operator::LessThan, "SCMP_CMP_LT"},
+                                 {Config::Seccomp::Syscall::Argument::Operator::LessThanOrEqual, "SCMP_CMP_LE"},
+                                 {Config::Seccomp::Syscall::Argument::Operator::Equal, "SCMP_CMP_EQ"},
+                                 {Config::Seccomp::Syscall::Argument::Operator::GreaterThanOrEqual, "SCMP_CMP_GE"},
+                                 {Config::Seccomp::Syscall::Argument::Operator::GreaterThan, "SCMP_CMP_GE"},
+                                 {Config::Seccomp::Syscall::Argument::Operator::MaskedEquality, "SCMP_CMP_MASKED_EQ"},
+                             });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp::Syscall::Argument, index, value, valueTwo, op);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp::Syscall, names, action, errnoRet, args);
-
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Architecture,
                              {
 #ifdef SCMP_ARCH_X86
@@ -786,7 +787,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Architecture,
                                  {Config::Seccomp::Architecture::RISCV64, "SCMP_ARCH_RISCV64"},
 #endif
                              });
-
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Flag,
                              {
 #ifdef SECCOMP_FILTER_FLAG_TSYNC
@@ -805,7 +805,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Flag,
                                  {Config::Seccomp::Flag::TSyncESRCH, "SECCOMP_FILTER_FLAG_TSYNC_ESRCH"},
 #endif
                              });
-
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Action,
                              {
 #ifdef SCMP_ACT_KILL_PROCESS
@@ -838,6 +837,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Action,
                              });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp, defaultAction, defaultErrnoRet, architectures, flags,
                                                 listenerPath, syscalls);
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Personality::Domain, {{Config::Personality::Domain::Linux, "LINUX"},
+                                                           {Config::Personality::Domain::Linux32, "LINUX32"}});
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Personality, domain, flags);
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config, ociVersion, root, mounts, process, hostname, hooks, annotations,
