@@ -17,7 +17,7 @@ void configIDMapping(pid_t target, const std::optional<std::vector<linglong::OCI
                      const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &gidMappings);
 void execHook(const linglong::OCI::Config::Hooks::Hook &hook);
 
-void makeSureParentSurvive(pid_t ppid) noexcept;
+void makeSureParentSurvive(pid_t ppid = 0) noexcept;
 
 void ignoreParentDie();
 
@@ -29,7 +29,7 @@ std::string fuseOverlayfsPath();
 
 std::vector<std::string> environPassThrough();
 
-void doMount(const linglong::OCI::Config::Mount &);
+void doMount(const linglong::OCI::Config::Mount &, const std::filesystem::path &check = "/");
 
 class Container
 {
@@ -76,10 +76,11 @@ public:
         util::Pipe sync;
 
         int cloneFlag;
-        char *stackTop;
 
         void init(pid_t ppid) noexcept;
         void setupContainer();
+        void pivotRoot();
+        void listenUnixSocket();
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

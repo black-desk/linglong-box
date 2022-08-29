@@ -46,7 +46,7 @@ void Container::Rootfs::run()
 
         this->prepareRootfs();
 
-        container->init->run();
+        this->container->init->run();
 
         spdlog::debug("rootfs: waiting init to request write ID mapping");
         this->sync >> msg;
@@ -57,7 +57,16 @@ void Container::Rootfs::run()
 
         configIDMapping(container->init->pid, container->config->uidMappings, container->config->gidMappings);
 
-        container->init->sync << 0;
+        this->container->init->sync << 0;
+
+        spdlog::debug("rootfs: waiting init to report \"create\" result");
+        this->sync >> msg;
+        spdlog::debug("rootfs: done");
+        if (msg == -1) {
+            throw util::RuntimeError("Error during waiting init to report \"create\" result");
+        }
+
+        this->container->sync << this->container->init->pid;
 
         this->exec();
         exit(-1);
@@ -136,7 +145,7 @@ void Container::Rootfs::prepareRootfs()
 
     if (config->annotations->rootfs.has_value() && config->annotations->rootfs->native.has_value()) {
         for (const auto &mount : config->annotations->rootfs->native->mounts) {
-            doMount(mount);
+            doMount(mount, config->root.path);
         }
     }
 }
@@ -145,4 +154,5 @@ void Container::Rootfs::exec()
 {
     // TODO:
 }
+
 } // namespace linglong

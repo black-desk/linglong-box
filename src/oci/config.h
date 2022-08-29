@@ -347,15 +347,15 @@ struct Config {
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md#namespaces
     struct Namespace {
-        typedef std::string Type;
-
-        static const Type PID;
-        static const Type Network;
-        static const Type Mount;
-        static const Type IPC;
-        static const Type UTS;
-        static const Type User;
-        static const Type Cgroup;
+        enum Type {
+            PID = CLONE_NEWPID,
+            Network = CLONE_NEWNET,
+            Mount = CLONE_NEWNS,
+            IPC = CLONE_NEWIPC,
+            UTS = CLONE_NEWUTS,
+            User = CLONE_NEWUSER,
+            Cgroup = CLONE_NEWCGROUP
+        };
 
         Type type;
         std::optional<std::filesystem::path> path;
@@ -365,11 +365,7 @@ struct Config {
 
     // https://github.com/opencontainers/runtime-spec/blob/main/config-linux.md#devices
     struct Device {
-        typedef std::string Type;
-
-        static const Type All;
-        static const Type Char;
-        static const Type Block;
+        enum Type { All, Char, Block };
 
         Type type;
         std::filesystem::path path;
@@ -467,117 +463,119 @@ struct Config {
     };
 
     struct Seccomp {
-        typedef std::string Architecture;
-
+        enum Architecture {
 #ifdef SCMP_ARCH_X86
-        static const Architecture X86;
+            X86 = SCMP_ARCH_X86,
 #endif
 #ifdef SCMP_ARCH_X86_64
-        static const Architecture X86_64;
+            X86_64 = SCMP_ARCH_X86_64,
 #endif
 #ifdef SCMP_ARCH_X32
-        static const Architecture X32;
+            X32 = SCMP_ARCH_X32,
 #endif
 #ifdef SCMP_ARCH_ARM
-        static const Architecture ARM;
+            ARM = SCMP_ARCH_ARM,
 #endif
 #ifdef SCMP_ARCH_AARCH64
-        static const Architecture AARCH64;
+            AARCH64 = SCMP_ARCH_AARCH64,
 #endif
 #ifdef SCMP_ARCH_MIPS
-        static const Architecture MIPS;
+            MIPS = SCMP_ARCH_MIPS,
 #endif
 #ifdef SCMP_ARCH_MIPS64
-        static const Architecture MIPS64;
+            MIPS64 = SCMP_ARCH_MIPS64,
 #endif
 #ifdef SCMP_ARCH_MIPS64N32
-        static const Architecture MIPS64N32;
+            MIPS64N32 = SCMP_ARCH_MIPS64N32,
 #endif
 #ifdef SCMP_ARCH_MIPSEL
-        static const Architecture MIPSEL;
+            MIPSEL = SCMP_ARCH_MIPSEL,
 #endif
 #ifdef SCMP_ARCH_MIPSEL64
-        static const Architecture MIPSEL64;
+            MIPSEL64 = SCMP_ARCH_MIPSEL64,
 #endif
 #ifdef SCMP_ARCH_MIPSEL64N32
-        static const Architecture MIPSEL64N32;
+            MIPSEL64N32 = SCMP_ARCH_MIPSEL64N32,
 #endif
 #ifdef SCMP_ARCH_PPC
-        static const Architecture PPC;
+            PPC = SCMP_ARCH_PPC,
 #endif
 #ifdef SCMP_ARCH_PPC64
-        static const Architecture PPC64;
+            PPC64 = SCMP_ARCH_PPC64,
 #endif
 #ifdef SCMP_ARCH_PPC64LE
-        static const Architecture PPC64LE;
+            PPC64LE = SCMP_ARCH_PPC64LE,
 #endif
 #ifdef SCMP_ARCH_S390
-        static const Architecture S390;
+            S390 = SCMP_ARCH_S390,
 #endif
 #ifdef SCMP_ARCH_S390X
-        static const Architecture S390X;
+            S390X = SCMP_ARCH_S390X,
 #endif
 #ifdef SCMP_ARCH_PARISC
-        static const Architecture PARISC;
+            PARISC = SCMP_ARCH_PARISC,
 #endif
 #ifdef SCMP_ARCH_PARISC64
-        static const Architecture PARISC64;
+            PARISC64 = SCMP_ARCH_PARISC64,
 #endif
 #ifdef SCMP_ARCH_RISCV64
-        static const Architecture RISCV64;
+            RISCV64 = SCMP_ARCH_RISCV64,
 #endif
+        };
 
-        typedef std::string Flag;
-
+        enum Flag {
 #ifdef SECCOMP_FILTER_FLAG_TSYNC
-        static const Flag TSync;
+            TSync = SECCOMP_FILTER_FLAG_TSYNC,
 #endif
 #ifdef SECCOMP_FILTER_FLAG_LOG
-        static const Flag FlagLog;
+            Log = SECCOMP_FILTER_FLAG_LOG,
 #endif
 #ifdef SECCOMP_FILTER_FLAG_SPEC_ALLOW
-        static const Flag SpecAllow;
+            SpecAllow = SECCOMP_FILTER_FLAG_SPEC_ALLOW,
 #endif
 #ifdef SECCOMP_FILTER_FLAG_NEW_LISTENER
-        static const Flag NewListener;
+            NewListener = SECCOMP_FILTER_FLAG_NEW_LISTENER,
 #endif
 #ifdef SECCOMP_FILTER_FLAG_TSYNC_ESRCH
-        static const Flag TSyncESRCH;
+            TSyncESRCH = SECCOMP_FILTER_FLAG_TSYNC_ESRCH,
 #endif
+        };
 
-        typedef std::string Action;
-
+        enum Action {
 #ifdef SCMP_ACT_KILL_PROCESS
-        static const Action KillProcess;
+            KillProcess = SCMP_ACT_KILL_PROCESS,
 #endif
 #ifdef SCMP_ACT_KILL_THREAD
-        static const Action KillThread;
+            KillThread = SCMP_ACT_KILL_THREAD,
 #endif
 #ifdef SCMP_ACT_KILL
-        static const Action Kill;
+            Kill = SCMP_ACT_KILL,
 #endif
 #ifdef SCMP_ACT_TRAP
-        static const Action Trap;
+            Trap = SCMP_ACT_TRAP,
 #endif
 #ifdef SCMP_ACT_NOTIFY
-        static const Action Notify;
+            Notify = SCMP_ACT_NOTIFY,
 #endif
 #ifdef SCMP_ACT_ERRNO
-        static const Action Errno;
+            Errno = SCMP_ACT_ERRNO(0),
 #endif
 #ifdef SCMP_ACT_TRACE
-        static const Action Trace;
+            Trace = SCMP_ACT_TRACE(0),
 #endif
 #ifdef SCMP_ACT_LOG
-        static const Action ActionLog;
+            ActionLog = SCMP_ACT_LOG,
 #endif
 #ifdef SCMP_ACT_ALLOW
-        static const Action Allow;
+            Allow = SCMP_ACT_ALLOW,
 #endif
+        };
 
         struct Syscall {
             struct Argument {
-                typedef std::string Operator;
+                enum Operator {
+
+                };
 
                 static const Operator NotEqual;
                 static const Operator LessThan;
@@ -689,7 +687,24 @@ inline void from_json(const nlohmann::json &j, Config::Annotations &a)
     j.at("rootfs").get_to(a.rootfs);
 }
 
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Namespace::Type, {
+                                                          {Config::Namespace::Type::PID, "pid"},
+                                                          {Config::Namespace::Type::Network, "network"},
+                                                          {Config::Namespace::Type::Mount, "mount"},
+                                                          {Config::Namespace::Type::IPC, "ipc"},
+                                                          {Config::Namespace::Type::UTS, "uts"},
+                                                          {Config::Namespace::Type::User, "user"},
+                                                          {Config::Namespace::Type::Cgroup, "cgroup"},
+                                                      });
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Namespace, type, path);
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Device::Type, {
+                                                       {Config::Device::Type::All, "a"},
+                                                       {Config::Device::Type::Block, "b"},
+                                                       {Config::Device::Type::Char, "c"},
+                                                   });
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Device, type, path, major, minor, fileMode, uid, gid);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources::Device, allow, type, major, minor, access);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources::Memory, limit, reservation, swap, kernel, kernelTCP,
@@ -710,6 +725,117 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Resources, devices, memo
                                                 network, pids, rdma);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp::Syscall::Argument, index, value, valueTwo, op);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp::Syscall, names, action, errnoRet, args);
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Architecture,
+                             {
+#ifdef SCMP_ARCH_X86
+                                 {Config::Seccomp::Architecture::X86, "SCMP_ARCH_X86"},
+#endif
+#ifdef SCMP_ARCH_X86_64
+                                 {Config::Seccomp::Architecture::X86_64, "SCMP_ARCH_X86_64"},
+#endif
+#ifdef SCMP_ARCH_X32
+                                 {Config::Seccomp::Architecture::X32, "SCMP_ARCH_X32"},
+#endif
+#ifdef SCMP_ARCH_ARM
+                                 {Config::Seccomp::Architecture::ARM, "SCMP_ARCH_ARM"},
+#endif
+#ifdef SCMP_ARCH_AARCH64
+                                 {Config::Seccomp::Architecture::AARCH64, "SCMP_ARCH_AARCH64"},
+#endif
+#ifdef SCMP_ARCH_MIPS
+                                 {Config::Seccomp::Architecture::MIPS, "SCMP_ARCH_MIPS"},
+#endif
+#ifdef SCMP_ARCH_MIPS64
+                                 {Config::Seccomp::Architecture::MIPS64, "SCMP_ARCH_MIPS64"},
+#endif
+#ifdef SCMP_ARCH_MIPS64N32
+                                 {Config::Seccomp::Architecture::MIPS64N32, "SCMP_ARCH_MIPS64N32"},
+#endif
+#ifdef SCMP_ARCH_MIPSEL
+                                 {Config::Seccomp::Architecture::MIPSEL, "SCMP_ARCH_MIPSEL"},
+#endif
+#ifdef SCMP_ARCH_MIPSEL64
+                                 {Config::Seccomp::Architecture::MIPSEL64, "SCMP_ARCH_MIPSEL64"},
+#endif
+#ifdef SCMP_ARCH_MIPSEL64N32
+                                 {Config::Seccomp::Architecture::MIPSEL64N32, "SCMP_ARCH_MIPSEL64N32"},
+#endif
+#ifdef SCMP_ARCH_PPC
+                                 {Config::Seccomp::Architecture::PPC, "SCMP_ARCH_PPC"},
+#endif
+#ifdef SCMP_ARCH_PPC64
+                                 {Config::Seccomp::Architecture::PPC64, "SCMP_ARCH_PPC64"},
+#endif
+#ifdef SCMP_ARCH_PPC64LE
+                                 {Config::Seccomp::Architecture::PPC64LE, "SCMP_ARCH_PPC64LE"},
+#endif
+#ifdef SCMP_ARCH_S390
+                                 {Config::Seccomp::Architecture::S390, "SCMP_ARCH_S390"},
+#endif
+#ifdef SCMP_ARCH_S390X
+                                 {Config::Seccomp::Architecture::S390X, "SCMP_ARCH_S390X"},
+#endif
+#ifdef SCMP_ARCH_PARISC
+                                 {Config::Seccomp::Architecture::PARISC, "SCMP_ARCH_PARISC"},
+#endif
+#ifdef SCMP_ARCH_PARISC64
+                                 {Config::Seccomp::Architecture::PARISC64, "SCMP_ARCH_PARISC64"},
+#endif
+#ifdef SCMP_ARCH_RISCV64
+                                 {Config::Seccomp::Architecture::RISCV64, "SCMP_ARCH_RISCV64"},
+#endif
+                             });
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Flag,
+                             {
+#ifdef SECCOMP_FILTER_FLAG_TSYNC
+                                 {Config::Seccomp::Flag::TSync, "SECCOMP_FILTER_FLAG_TSYNC"},
+#endif
+#ifdef SECCOMP_FILTER_FLAG_LOG
+                                 {Config::Seccomp::Flag::Log, "SECCOMP_FILTER_FLAG_LOG"},
+#endif
+#ifdef SECCOMP_FILTER_FLAG_SPEC_ALLOW
+                                 {Config::Seccomp::Flag::SpecAllow, "SECCOMP_FILTER_FLAG_SPEC_ALLOW"},
+#endif
+#ifdef SECCOMP_FILTER_FLAG_NEW_LISTENER
+                                 {Config::Seccomp::Flag::NewListener, "SECCOMP_FILTER_FLAG_NEW_LISTENER"},
+#endif
+#ifdef SECCOMP_FILTER_FLAG_TSYNC_ESRCH
+                                 {Config::Seccomp::Flag::TSyncESRCH, "SECCOMP_FILTER_FLAG_TSYNC_ESRCH"},
+#endif
+                             });
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Action,
+                             {
+#ifdef SCMP_ACT_KILL_PROCESS
+                                 {Config::Seccomp::Action::KillProcess, "SCMP_ACT_KILL_PROCESS"},
+#endif
+#ifdef SCMP_ACT_KILL_THREAD
+                                 {Config::Seccomp::Action::KillThread, "SCMP_ACT_KILL_THREAD"},
+#endif
+#ifdef SCMP_ACT_KILL
+                                 {Config::Seccomp::Action::Kill, "SCMP_ACT_KILL"},
+#endif
+#ifdef SCMP_ACT_TRAP
+                                 {Config::Seccomp::Action::Trap, "SCMP_ACT_TRAP"},
+#endif
+#ifdef SCMP_ACT_NOTIFY
+                                 {Config::Seccomp::Action::Notify, "SCMP_ACT_NOTIFY"},
+#endif
+#ifdef SCMP_ACT_ERRNO
+                                 {Config::Seccomp::Action::Errno, "SCMP_ACT_ERRNO(0)"},
+#endif
+#ifdef SCMP_ACT_TRACE
+                                 {Config::Seccomp::Action::Trace, "SCMP_ACT_TRACE(0)"},
+#endif
+#ifdef SCMP_ACT_LOG
+                                 {Config::Seccomp::Action::ActionLog, "SCMP_ACT_LOG"},
+#endif
+#ifdef SCMP_ACT_ALLOW
+                                 {Config::Seccomp::Action::Allow, "SCMP_ACT_ALLOW"},
+#endif
+                             });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp, defaultAction, defaultErrnoRet, architectures, flags,
                                                 listenerPath, syscalls);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Personality, domain, flags);

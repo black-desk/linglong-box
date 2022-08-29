@@ -74,14 +74,12 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
 
         container->monitor->sync << 0; // request run "createRuntime"
 
-        {
-            int msg = 0;
-            spdlog::debug("runtime: wait monitor to report hooks result");
-            container->sync >> msg;
-            spdlog::debug("runtime: done");
-            if (msg != 0) {
-                throw util::RuntimeError("Error during waitting hooks finish");
-            }
+        int msg = 0;
+        spdlog::debug("runtime: wait monitor to report hooks result");
+        container->sync >> msg;
+        spdlog::debug("runtime: done");
+        if (msg != 0) {
+            throw util::RuntimeError("Error during waitting hooks finish");
         }
     } catch (const std::runtime_error &e) {
         auto guard = FlockGuard(this->workingDir);

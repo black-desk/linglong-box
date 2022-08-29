@@ -1,18 +1,19 @@
 #include <spdlog/spdlog.h>
 
+#include <sys/mount.h>
 #include <sys/prctl.h>
 
 #include "container.h"
 #include "util/exception.h"
 #include "util/sync.h"
+#include "util/fd.h"
 
 namespace linglong {
 
 Container::Init::Init(Container *const container)
     : container(container)
-    , cloneFlag()
 {
-    // TODO:
+    const auto &config = this->container->config;
 }
 
 void Container::Init::init(pid_t ppid) noexcept
@@ -50,8 +51,32 @@ void Container::Init::run()
 
             this->setupContainer();
 
-            this->container->sync << getpid(); // FIXME:
+            ignoreParentDie();
 
+            this->container->rootfs->sync << 0; // NOTE: create result
+
+            spdlog::debug("init: waiting monitor to request run hooks");
+            this->sync >> msg;
+            spdlog::debug("init: done");
+            if (msg == -1) {
+                throw util::RuntimeError("Error during waiting monitor to request run hooks");
+            }
+
+            makeSureParentSurvive();
+
+            const auto &config = *this->container->config;
+
+            if (config.hooks.has_value() && config.hooks->createContainer.has_value()) {
+                for (const auto &hook : config.hooks->createContainer.value()) {
+                    execHook(hook);
+                }
+            }
+
+            this->container->sync << 0;
+
+            this->pivotRoot();
+
+            this->listenUnixSocket();
 
         } catch (const util::RuntimeError &e) {
             std::stringstream s;
@@ -69,10 +94,68 @@ void Container::Init::run()
         return -1;
     };
 
-    int initPID = clone(_, this->stackTop, this->cloneFlag, &lambda);
+    int cloneFlag = 0;
+    char *stackTop = nullptr;
+
+    {
+        const auto &config = this->container->config;
+        for (const auto &ns : config->namespaces) {
+            
+        }
+    }
+
+    int initPID = clone(_, nullptr, this->cloneFlag, &lambda);
     if (initPID) { // parent
         this->pid = initPID;
         return;
     }
 }
+
+void Container::Init::pivotRoot()
+{
+    util::FD oldRootFD(open("/", O_DIRECTORY | O_PATH));
+    util::FD newRootFD(open(this->container->config->root.path.c_str(), O_DIRECTORY | O_RDONLY));
+
+    int ret = -1;
+    ret = fchdir(newRootFD.fd);
+    if (ret != 0) {
+        throw util::RuntimeError(fmt::format("Failed to chdir to new root: {}", strerror(errno)));
+    }
+
+    ret = syscall(SYS_pivot_root, ".", ".");
+
+    ret = fchdir(oldRootFD.fd);
+    if (ret != 0) {
+        throw util::RuntimeError(fmt::format("Failed to chdir to new root: {}", strerror(errno)));
+    }
+
+    ret = mount(nullptr, ".", nullptr, MS_REC | MS_PRIVATE, nullptr);
+    if (ret != 0) {
+        throw util::RuntimeError(
+            fmt::format("Failed to changing the propagation type of old root: {}", strerror(errno)));
+    }
+
+    try {
+        ret = umount2(".", MNT_DETACH);
+        if (ret != 0) {
+            throw nullptr;
+        }
+        do {
+            ret = umount2(".", MNT_DETACH);
+            if (ret != 0 && errno == EINVAL) {
+                break;
+            }
+            if (ret != 0) {
+                throw nullptr;
+            }
+        } while (ret == 0);
+    } catch (...) {
+        throw util::RuntimeError(fmt::format("Failed to umount old rootfs: {}", strerror(errno)));
+    }
+}
+
+void Container::Init::listenUnixSocket()
+{
+}
+
 } // namespace linglong

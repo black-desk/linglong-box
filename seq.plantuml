@@ -50,11 +50,12 @@ rootfs -> rootfs: setup ID mapping
 rootfs --> init: done
 end
 
-deactivate rootfs
 
 init -> init: setup container
 init -> init: setup signal handler
-cli <-- init: "create" result
+rootfs <-- init: "create" result
+cli <-- rootfs: init pid
+deactivate rootfs
 cli -> cli: update state
 ==created==
 

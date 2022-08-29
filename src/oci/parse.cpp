@@ -72,7 +72,6 @@ void Config::parse(const std::filesystem::path &bundlePath)
         }
 
         // TODO: make sure always unshare User and Mount
-
     }
 
     {
@@ -400,14 +399,6 @@ void Config::Process::parse(const std::filesystem::path &bundlePath)
 
 void Config::Namespace::parse(const std::filesystem::path &bundlePath)
 {
-    static std::set<Namespace::Type> namespaceTypeSet = {
-        Namespace::PID, Namespace::Network, Namespace::Mount,  Namespace::IPC,
-        Namespace::UTS, Namespace::User,    Namespace::Cgroup,
-    };
-
-    if (namespaceTypeSet.find(this->type) == namespaceTypeSet.end()) {
-        throw util::RuntimeError(fmt::format("config.json is not valid: unknow namespace type \"{}\"", this->type));
-    }
     if (this->path.has_value() && !this->path->is_absolute()) {
         throw util::RuntimeError(
             fmt::format("config.json is not valid: namespace path \"{}\" is not a absolute path.", this->path));
