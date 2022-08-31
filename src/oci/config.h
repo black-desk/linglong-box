@@ -65,8 +65,8 @@ struct Config {
     // LINUX https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#linux-process
     struct Process {
         struct ConsoleSize {
-            uint height;
-            uint width;
+            unsigned short int height;
+            unsigned short int width;
         };
 
         struct Rlimit {

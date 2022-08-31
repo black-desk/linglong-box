@@ -1,15 +1,22 @@
+#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
+
 #include <optional>
-#include <spdlog/spdlog.h>
+#include <cstdlib>
 
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
 #include <sys/sysmacros.h>
 
+#include <spdlog/spdlog.h>
+
 #include "container.h"
 #include "util/exception.h"
 #include "util/sync.h"
 #include "util/fd.h"
+
+static const uint PTSNAME_LEN = 64;
 
 namespace linglong {
 
@@ -129,6 +136,7 @@ void Container::Init::setupContainer()
     this->setMounts();
     this->setLink();
     this->setCgroup();
+    this->setSeccomp();
     this->setDevices();
     this->setConsole();
 }
@@ -161,6 +169,13 @@ void Container::Init::setMounts()
 void Container::Init::setCgroup()
 {
     spdlog::error("init: TODO: cgroup support not implemented yet");
+    // TODO:
+    return;
+}
+
+void Container::Init::setSeccomp()
+{
+    spdlog::error("init: TODO: seccomp support not implemented yet");
     // TODO:
     return;
 }
@@ -239,7 +254,33 @@ void Container::Init::setConsole()
 {
     if (!(this->container->config->process.has_value() && this->container->config->process->terminal.value_or(false)))
         return;
-    
+
+    std::unique_ptr<util::FD> pty(new util::FD(open("/dev/ptmx", O_RDWR | O_NOCTTY | O_CLOEXEC)));
+
+    int ret = -1;
+    char buf[PTSNAME_LEN];
+    ret = ptsname_r(pty->fd, buf, sizeof(buf));
+    if (ret < 0)
+        throw util::RuntimeError(fmt::format("Failed to get ptsname: {}", strerror(errno)));
+
+    ret = unlockpt(pty->fd);
+    if (ret < 0)
+        throw util::RuntimeError(fmt::format("Failed to unlockpt: {}", strerror(errno)));
+
+    if (this->container->config->process->consoleSize.has_value()) {
+        const auto &size = this->container->config->process->consoleSize.value();
+        struct winsize ws({size.height, size.width});
+
+        int ret;
+
+        ret = ioctl(pty->fd, TIOCSWINSZ, &ws);
+        if (ret < 0)
+            throw util::RuntimeError(fmt::format("Failed to set console size (height={}, width={}): {}", size.height,
+                                                 size.width, strerror(errno)));
+    }
+
+    this->terminalFD = std::move(pty);
+
     return;
 }
 
@@ -288,6 +329,9 @@ void Container::Init::pivotRoot()
 
 void Container::Init::listenUnixSocket()
 {
+    // listen exec
+    // wait start
+    // send terminal fd
 }
 
 } // namespace linglong

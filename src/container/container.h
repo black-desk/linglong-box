@@ -9,6 +9,7 @@
 
 #include "oci/config.h"
 #include "oci/runtime.h"
+#include "util/fd.h"
 #include "util/sync.h"
 
 namespace linglong {
@@ -78,8 +79,7 @@ public:
 
         Container *const container;
         util::Pipe sync;
-
-        int cloneFlag;
+        std::unique_ptr<util::FD> terminalFD;
 
         void init(pid_t ppid) noexcept;
         void setupContainer();
@@ -88,6 +88,7 @@ public:
         void setMounts();
         void setLink();
         void setCgroup();
+        void setSeccomp();
         void setDevices();
         void setConsole();
 

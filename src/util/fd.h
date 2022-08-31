@@ -6,7 +6,7 @@ struct FD {
     int fd;
 
     FD(int);
-    FD(FD &&) = delete;
+    FD(FD &&);
     FD(const FD &) = delete;
     ~FD();
 };
