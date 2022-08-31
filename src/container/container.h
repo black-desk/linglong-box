@@ -29,7 +29,7 @@ std::string fuseOverlayfsPath();
 
 std::vector<std::string> environPassThrough();
 
-void doMount(const linglong::OCI::Config::Mount &, const std::filesystem::path &check = "/");
+void doMount(const linglong::OCI::Config::Mount &, const std::filesystem::path &check = "/", bool ignoreError = false);
 
 class Container
 {
@@ -40,6 +40,8 @@ public:
         bool SetupSystemdScope;
         bool IgnoreMountFail;
         uint StackSize;
+        bool CreateDefaultDevice;
+        bool LinkLFS;
     };
 
     struct Monitor {
@@ -84,9 +86,10 @@ public:
 
         void setNS();
         void setMounts();
+        void setLink();
         void setCgroup();
         void setDevices();
-        void setLink();
+        void setConsole();
 
         void pivotRoot();
         void listenUnixSocket();

@@ -1,8 +1,10 @@
+#include <optional>
 #include <spdlog/spdlog.h>
 
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
+#include <sys/sysmacros.h>
 
 #include "container.h"
 #include "util/exception.h"
@@ -125,9 +127,10 @@ void Container::Init::setupContainer()
 {
     this->setNS();
     this->setMounts();
+    this->setLink();
     this->setCgroup();
     this->setDevices();
-    this->setLink();
+    this->setConsole();
 }
 
 void Container::Init::setNS()
@@ -151,28 +154,93 @@ void Container::Init::setMounts()
     const auto &mounts = this->container->config->mounts.value_or(std::vector<OCI::Config::Mount>());
     const auto &root = this->container->config->root.path;
     for (const auto &mount : mounts) {
-        try {
-            doMount(mount, root);
-        } catch (const util::RuntimeError &e) {
-            if (this->container->option.IgnoreMountFail) {
-                std::stringstream s;
-                util::printException(s, e);
-                spdlog::error("init: {}", s);
-            } else {
-                throw e;
-            }
-        }
+        doMount(mount, root, this->container->option.IgnoreMountFail);
     }
 }
 
 void Container::Init::setCgroup()
 {
-    return;
+    spdlog::error("init: TODO: cgroup support not implemented yet");
     // TODO:
+    return;
 }
 
 void Container::Init::setDevices()
 {
+    struct std::vector<OCI::Config::Device> neededDevs({
+        {OCI::Config::Device::Char, "/dev/null", 1, 3, 0666, 0, 0},
+        {OCI::Config::Device::Char, "/dev/zero", 1, 5, 0666, 0, 0},
+        {OCI::Config::Device::Char, "/dev/full", 1, 7, 0666, 0, 0},
+        {OCI::Config::Device::Char, "/dev/tty", 5, 0, 0666, 0, 0},
+        {OCI::Config::Device::Char, "/dev/random", 1, 8, 0666, 0, 0},
+        {OCI::Config::Device::Char, "/dev/urandom", 1, 9, 0666, 0, 0},
+    });
+
+    for (const auto &d : neededDevs) {
+        if (this->container->option.CreateDefaultDevice) {
+            dev_t dev = -1;
+            dev = makedev(d.major, d.minor);
+            if (dev == -1) {
+                throw util::RuntimeError(
+                    fmt::format("Failed to makedev (major={},minor={}): {}", d.major, d.minor, strerror(errno)));
+            }
+            int ret = -1;
+            ret =
+                mknod((this->container->config->root.path / d.path).c_str(), d.fileMode.value_or(0700) | S_IFCHR, dev);
+            if (ret == -1) {
+                throw util::RuntimeError(
+                    fmt::format("Failed to makedev (major={},minor={}): {}", d.major, d.minor, strerror(errno)));
+            }
+        } else {
+            doMount({this->container->config->root.path / d.path, d.path, std::nullopt, OCI::Config::Mount::Bind,
+                     std::nullopt, std::nullopt},
+                    this->container->config->root.path, this->container->option.IgnoreMountFail);
+        }
+    }
+
+    // FIXME: use symbol link?
+    // NOTE: ignore fail here as maybe /dev/pts might not mount
+    doMount({this->container->config->root.path / "dev/ptmx", this->container->config->root.path / "dev/pts/ptmx",
+             std::nullopt, OCI::Config::Mount::Bind, std::nullopt, std::nullopt},
+            this->container->config->root.path, true);
+}
+
+void Container::Init::setLink()
+{
+    static std::vector<std::pair<const char *const, const char *const>> standardSymlinks = {
+        {"/proc/self/fd", "/dev/fd"},
+        {"/proc/self/fd/0", "/dev/stdin"},
+        {"/proc/self/fd/1", "/dev/stdout"},
+        {"/proc/self/fd/2", "/dev/stderr"},
+    };
+
+    static std::vector<std::pair<const char *const, const char *const>> lfsSymlinks = {
+        {"/usr/bin", "/bin"},     {"/usr/lib", "/lib"},       {"/usr/lib32", "/lib32"},
+        {"/usr/lib64", "/lib64"}, {"/usr/libx32", "/libx32"},
+    };
+
+    std::vector<std::vector<std::pair<const char *const, const char *const>> *> linksArr = {&standardSymlinks};
+    if (this->container->option.LinkLFS) {
+        linksArr.push_back(&lfsSymlinks);
+    }
+
+    for (auto links : linksArr) {
+        for (const auto &link : *links) {
+            int ret = symlink(link.first, link.second);
+            if (ret == -1) {
+                throw util::RuntimeError(fmt::format("Failed to create symlink (from=\"{}\", to=\"{}\"): {}",
+                                                     link.first, link.second, strerror(errno)));
+            }
+        }
+    }
+}
+
+void Container::Init::setConsole()
+{
+    if (!(this->container->config->process.has_value() && this->container->config->process->terminal.value_or(false)))
+        return;
+    
+    return;
 }
 
 void Container::Init::pivotRoot()
