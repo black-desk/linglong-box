@@ -12,6 +12,8 @@
 #include <string>
 #include <sstream>
 
+#include <spdlog/spdlog.h>
+
 #include "commands.h"
 #include "util/exception.h"
 
@@ -45,7 +47,7 @@ int main(int argc, char **argv)
     } catch (const std::exception &e) {
         std::stringstream buf;
         linglong::util::printException(buf, e);
-        std::cerr << "create container failed:" << buf.str();
+        spdlog::error("create container failed: {}", buf);
         showHelpInfomationError(0, nullptr);
     }
 
