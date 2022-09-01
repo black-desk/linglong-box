@@ -207,16 +207,15 @@ void Container::Init::setDevices()
                     fmt::format("Failed to makedev (major={},minor={}): {}", d.major, d.minor, strerror(errno)));
             }
         } else {
-            doMount({this->container->config->root.path / d.path, d.path, std::nullopt, OCI::Config::Mount::Bind,
-                     std::nullopt, std::nullopt},
+            doMount({d.path, d.path, std::nullopt, OCI::Config::Mount::Bind, std::nullopt, std::nullopt},
                     this->container->config->root.path, this->container->option.IgnoreMountFail);
         }
     }
 
     // FIXME: use symbol link?
     // NOTE: ignore fail here as maybe /dev/pts might not mount
-    doMount({this->container->config->root.path / "dev/ptmx", this->container->config->root.path / "dev/pts/ptmx",
-             std::nullopt, OCI::Config::Mount::Bind, std::nullopt, std::nullopt},
+    doMount({"/dev/ptmx", this->container->config->root.path / "dev/pts/ptmx", std::nullopt, OCI::Config::Mount::Bind,
+             std::nullopt, std::nullopt},
             this->container->config->root.path, true);
 }
 
