@@ -23,6 +23,7 @@ public:
     Pipe &operator>>(int &);
     Pipe &operator<<(Message);
     Pipe &operator>>(Message &);
+    int fd;
 };
 
 } // namespace linglong::util
