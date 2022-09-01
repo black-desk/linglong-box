@@ -36,7 +36,7 @@ void Container::Monitor::run()
         this->sync >> msg;
         spdlog::debug("monitor: done");
         if (msg) {
-            throw util::RuntimeError("Error while waiting write id mapping request from rootfs");
+            throw std::runtime_error("Error while waiting write id mapping request from rootfs");
         }
 
         configIDMapping(rootfs.pid, rootfsConfig.uidMappings, rootfsConfig.gidMappings);
@@ -49,7 +49,7 @@ void Container::Monitor::run()
         this->sync >> msg;
         spdlog::debug("monitor: done");
         if (msg) {
-            throw util::RuntimeError("Error during waiting run hooks request from runtime");
+            throw std::runtime_error("Error during waiting run hooks request from runtime");
         }
 
         if (config.hooks.has_value() && config.hooks->createRuntime.has_value()) {
@@ -63,7 +63,7 @@ void Container::Monitor::run()
         this->sync >> msg;
         spdlog::debug("monitor: done");
         if (msg) {
-            throw util::RuntimeError("Error during waiting createContainer hook");
+            throw std::runtime_error("Error during waiting createContainer hook");
         }
 
         container->sync << 0;
@@ -72,7 +72,7 @@ void Container::Monitor::run()
         this->sync >> msg;
         spdlog::debug("monitor: done");
         if (msg) {
-            throw util::RuntimeError("Error during waiting request run poststart");
+            throw std::runtime_error("Error during waiting request run poststart");
         }
 
         if (config.hooks.has_value() && config.hooks->poststart.has_value()) {
@@ -87,7 +87,7 @@ void Container::Monitor::run()
 
         this->exec(); // NOTE: will not return
 
-    } catch (const util::RuntimeError &e) {
+    } catch (const std::runtime_error &e) {
         std::stringstream s;
         util::printException(s, e);
         spdlog::error("monitor: Unhanded exception during container monitor running: {}", s);

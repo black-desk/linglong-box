@@ -47,6 +47,7 @@ public:
 private:
     std::filesystem::path workingDir;
     void updateState(const std::filesystem::path &containerWorkingDir, const struct State &state);
+    void proxy(int in, int out, int target);
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(struct Runtime::State, ociVersion, id, status, pid, bundle,

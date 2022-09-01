@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     } catch (const std::exception &e) {
         std::stringstream buf;
         linglong::util::printException(buf, e);
-        spdlog::error("create container failed: {}", buf);
+        spdlog::error("ll-box: command execution failed: {}", buf);
         showHelpInfomationError(0, nullptr);
     }
 

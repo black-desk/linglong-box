@@ -118,9 +118,16 @@ public:
     std::unique_ptr<Init> init;
 };
 
-class ContainerRef
-{
+struct ContainerRef {
+    ContainerRef(const std::filesystem::path &workingPath);
+    void Start();
 
+    util::FD connect();
+
+    std::filesystem::path workingPath;
+    struct OCI::Runtime::State state;
+    util::Pipe socket;
+    util::FD terminalFD;
 };
 
 } // namespace linglong

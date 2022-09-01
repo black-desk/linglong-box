@@ -18,7 +18,7 @@ class Pipe
 {
 public:
     Pipe();
-    Pipe(std::unique_ptr<util::FD> socket); // fd is a local socket.
+    Pipe(util::FD&& socket); // fd is a local socket.
     Pipe &operator<<(int);
     Pipe &operator>>(int &);
     Pipe &operator<<(Message);

@@ -5,9 +5,11 @@ namespace linglong::util {
 struct FD {
     int fd;
 
+    FD();
     FD(int);
     FD(FD &&);
     FD(const FD &) = delete;
+    FD &operator=(FD &&);
     ~FD();
 };
 } // namespace linglong::util

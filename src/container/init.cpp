@@ -58,7 +58,7 @@ void Container::Init::run()
     stack = (char *)mmap(NULL, this->container->option.StackSize, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
     if (stack == MAP_FAILED) {
-        throw util::RuntimeError(fmt::format("Failed to allocate stack for init: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to allocate stack for init: {}", strerror(errno)));
     }
 
     stack += this->container->option.StackSize;
@@ -76,7 +76,7 @@ void Container::Init::run()
             this->sync >> msg;
             spdlog::debug("init: done");
             if (msg == -1) {
-                throw util::RuntimeError("Error during waiting monitor to write ID mapping");
+                throw std::runtime_error("Error during waiting monitor to write ID mapping");
             }
 
             this->setupContainer();
@@ -89,7 +89,7 @@ void Container::Init::run()
             this->sync >> msg;
             spdlog::debug("init: done");
             if (msg == -1) {
-                throw util::RuntimeError("Error during waiting monitor to request run hooks");
+                throw std::runtime_error("Error during waiting monitor to request run hooks");
             }
 
             makeSureParentSurvive();
@@ -107,7 +107,7 @@ void Container::Init::run()
             this->pivotRoot();
 
             this->waitStart();
-        } catch (const util::RuntimeError &e) {
+        } catch (const std::runtime_error &e) {
             std::stringstream s;
             util::printException(s, e);
             spdlog::error("init: Unhanded exception during init running: {}", s);
@@ -150,7 +150,7 @@ void Container::Init::setNS()
             util::FD fd(open(ns.path->c_str(), O_RDONLY | O_CLOEXEC)); // FIXME: O_PATH?
             ret = setns(fd.fd, ns.type);
             if (ret == -1) {
-                throw util::RuntimeError(
+                throw std::runtime_error(
                     fmt::format("Failed to enter namespace {} (type={}): {}", ns.path, ns.type, strerror(errno)));
             }
         }
@@ -196,14 +196,14 @@ void Container::Init::setDevices()
             dev_t dev = -1;
             dev = makedev(d.major, d.minor);
             if (dev == -1) {
-                throw util::RuntimeError(
+                throw std::runtime_error(
                     fmt::format("Failed to makedev (major={},minor={}): {}", d.major, d.minor, strerror(errno)));
             }
             int ret = -1;
             ret =
                 mknod((this->container->config->root.path / d.path).c_str(), d.fileMode.value_or(0700) | S_IFCHR, dev);
             if (ret == -1) {
-                throw util::RuntimeError(
+                throw std::runtime_error(
                     fmt::format("Failed to makedev (major={},minor={}): {}", d.major, d.minor, strerror(errno)));
             }
         } else {
@@ -243,7 +243,7 @@ void Container::Init::setLink()
         for (const auto &link : *links) {
             int ret = symlink(link.first, link.second);
             if (ret == -1) {
-                throw util::RuntimeError(fmt::format("Failed to create symlink (from=\"{}\", to=\"{}\"): {}",
+                throw std::runtime_error(fmt::format("Failed to create symlink (from=\"{}\", to=\"{}\"): {}",
                                                      link.first, link.second, strerror(errno)));
             }
         }
@@ -261,11 +261,11 @@ void Container::Init::setConsole()
     char buf[PTSNAME_LEN];
     ret = ptsname_r(pty->fd, buf, sizeof(buf));
     if (ret < 0)
-        throw util::RuntimeError(fmt::format("Failed to get ptsname: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to get ptsname: {}", strerror(errno)));
 
     ret = unlockpt(pty->fd);
     if (ret < 0)
-        throw util::RuntimeError(fmt::format("Failed to unlockpt: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to unlockpt: {}", strerror(errno)));
 
     if (this->container->config->process->consoleSize.has_value()) {
         const auto &size = this->container->config->process->consoleSize.value();
@@ -275,7 +275,7 @@ void Container::Init::setConsole()
 
         ret = ioctl(pty->fd, TIOCSWINSZ, &ws);
         if (ret < 0)
-            throw util::RuntimeError(fmt::format("Failed to set console size (height={}, width={}): {}", size.height,
+            throw std::runtime_error(fmt::format("Failed to set console size (height={}, width={}): {}", size.height,
                                                  size.width, strerror(errno)));
     }
 
@@ -292,19 +292,19 @@ void Container::Init::pivotRoot()
     int ret = -1;
     ret = fchdir(newRootFD.fd);
     if (ret != 0) {
-        throw util::RuntimeError(fmt::format("Failed to chdir to new root: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to chdir to new root: {}", strerror(errno)));
     }
 
     ret = syscall(SYS_pivot_root, ".", ".");
 
     ret = fchdir(oldRootFD.fd);
     if (ret != 0) {
-        throw util::RuntimeError(fmt::format("Failed to chdir to new root: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to chdir to new root: {}", strerror(errno)));
     }
 
     ret = mount(nullptr, ".", nullptr, MS_REC | MS_PRIVATE, nullptr);
     if (ret != 0) {
-        throw util::RuntimeError(
+        throw std::runtime_error(
             fmt::format("Failed to changing the propagation type of old root: {}", strerror(errno)));
     }
 
@@ -323,7 +323,7 @@ void Container::Init::pivotRoot()
             }
         } while (ret == 0);
     } catch (...) {
-        throw util::RuntimeError(fmt::format("Failed to umount old rootfs: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to umount old rootfs: {}", strerror(errno)));
     }
 }
 
@@ -331,14 +331,14 @@ void Container::Init::waitStart()
 {
     int ret = listen(this->socket, 1);
     if (ret) {
-        throw util::RuntimeError(fmt::format("Failed to listen socket: {}", strerror(errno)));
+        throw std::runtime_error(fmt::format("Failed to listen socket: {}", strerror(errno)));
     }
 
     spdlog::debug("init: waiting start command");
     int startRequestFD = accept(this->socket, nullptr, nullptr);
     spdlog::debug("init: done");
 
-    util::Pipe conn(std::unique_ptr<util::FD>(new util::FD(startRequestFD)));
+    util::Pipe conn((util::FD(startRequestFD)));
 
     util::Message startRequest;
     conn >> startRequest;
@@ -369,12 +369,10 @@ void Container::Init::waitStart()
 
         this->clear();
 
-    } catch (const util::RuntimeError &e) {
+    } catch (const std::exception &e) {
         std::stringstream s;
         util::printException(s, e);
         spdlog::error("init: Unhanded exception occur after exec process: {}", s);
-    } catch (const std::exception &e) {
-        spdlog::error("init: Unhanded exception occur after exec process: {}", e.what());
     } catch (...) {
         spdlog::error("init: Unhanded exception occur after exec process");
     }

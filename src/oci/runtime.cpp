@@ -12,7 +12,6 @@
 
 #include "container/container.h"
 #include "runtime.h"
-#include "util/exception.h"
 #include "util/filesystem.h"
 #include "util/lock.h"
 
@@ -39,48 +38,38 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
     std::unique_ptr<Container> container;
 
     try {
-        if (!mkdirp(this->workingDir, 0755)) {
-            auto msg = fmt::format("Failed to create dir (path=\"{}\")", this->workingDir);
-            throw std::runtime_error(msg.c_str());
-        }
+        mkdirp(this->workingDir, 0755);
 
         {
             auto guard = FlockGuard(this->workingDir);
 
-            if (!mkdir(containerWorkingDir, 0755)) {
-                auto msg = fmt::format("Failed to create dir (path=\"{}\")", containerWorkingDir);
-                throw std::runtime_error(msg.c_str());
-            }
+            mkdir(containerWorkingDir, 0755);
 
-            auto originConfigJsonPath = bundle / std::filesystem::path("config.json");
-            std::ifstream configJsonFile(originConfigJsonPath);
-            if (!configJsonFile.is_open()) {
-                auto msg = fmt::format("Failed to open config.json (\"{}\")", originConfigJsonPath);
-                throw std::runtime_error(msg.c_str());
-            }
+            std::ifstream configJsonFile;
+            configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+            configJsonFile.open(bundle / "config.json");
 
             nlohmann::json configJson;
             configJsonFile >> configJson;
 
             int socketFD = -1;
 
-            {
-                socketFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-                if (socketFD != -1) {
-                    throw util::RuntimeError(fmt::format("Failed to create socket: {}", strerror(errno)));
-                }
+            socketFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+            if (socketFD != -1) {
+                throw std::runtime_error(fmt::format("Failed to create socket: {}", strerror(errno)));
+            }
 
-                std::filesystem::path addr = this->workingDir / "socket";
+            std::filesystem::path addr = this->workingDir / "socket";
 
-                sockaddr_un name = {};
-                name.sun_family = AF_UNIX;
-                strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
+            sockaddr_un name = {};
+            name.sun_family = AF_UNIX;
+            strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
 
-                int ret = -1;
-                ret = bind(socketFD, (const sockaddr *)&name, sizeof(name));
-                if (ret == -1) {
-                    throw util::RuntimeError(fmt::format("Failed to bind socket to \"{}\": {}", strerror(errno)));
-                }
+            int ret = -1;
+            ret = bind(socketFD, (const sockaddr *)&name, sizeof(name));
+            if (ret == -1) {
+                throw std::runtime_error(fmt::format("Failed to bind socket to \"{}\": {}", strerror(errno)));
             }
 
             container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, socketFD,
@@ -111,13 +100,13 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         container->sync >> msg;
         spdlog::debug("runtime: done");
         if (msg != 0) {
-            throw util::RuntimeError("Error during waitting hooks finish");
+            throw std::runtime_error("Error during waitting hooks finish");
         }
     } catch (const std::runtime_error &e) {
         auto guard = FlockGuard(this->workingDir);
         rmrf(containerWorkingDir);
-        auto msg = fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle);
-        std::throw_with_nested(std::runtime_error(msg.c_str()));
+        std::throw_with_nested(std::runtime_error(
+            fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle)));
     }
 }
 
@@ -126,7 +115,7 @@ void Runtime::updateState(const std::filesystem::path &containerWorkingDir, cons
     auto stateJsonPath = containerWorkingDir / std::filesystem::path("state.json");
     std::ofstream stateJsonFile(stateJsonPath);
     if (!stateJsonFile.is_open()) {
-        throw util::RuntimeError(fmt::format("Failed to open file (\"{}\")", stateJsonPath));
+        throw std::runtime_error(fmt::format("Failed to open file (\"{}\")", stateJsonPath));
     }
 
     nlohmann::json stateJson(state);
@@ -140,8 +129,26 @@ void Runtime::Start(const std::string &containerID, const bool interactive)
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        
-    } catch (const std::runtime_error &e) {
+        std::unique_ptr<ContainerRef> c;
+
+        {
+            auto lock = FlockGuard(this->workingDir);
+            c.reset(new ContainerRef(containerWorkingDir));
+        }
+
+        c->Start();
+
+        {
+            auto lock = FlockGuard(this->workingDir);
+            this->updateState(containerWorkingDir, c->state);
+        }
+
+        if (interactive) {
+            proxy(0, 1, c->terminalFD.fd);
+        }
+
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("Command start failed"));
     }
 }
 
@@ -170,6 +177,10 @@ int Runtime::Exec(const std::string &containerID, const std::string &pathToProce
 int Runtime::Exec(const std::string &containerID, const std::vector<std::string> &commandToExec, const bool detach)
 {
     // FIXME: TODO
+}
+
+void Runtime::proxy(int in, int out, int target)
+{
 }
 
 } // namespace OCI
