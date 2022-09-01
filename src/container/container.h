@@ -68,17 +68,18 @@ public:
         int unshareFlag;
 
         void init(pid_t ppid) noexcept;
-        void exec();
+        void clear();
         void prepareRootfs();
     };
 
     struct Init {
-        Init(Container *const container);
+        Init(Container *const container, int socket);
         void run();
         pid_t pid;
 
         Container *const container;
         util::Pipe sync;
+        int socket;
         std::unique_ptr<util::FD> terminalFD;
 
         void init(pid_t ppid) noexcept;
@@ -93,17 +94,16 @@ public:
         void setConsole();
 
         void pivotRoot();
-        void listen();
+        void waitStart();
+        void execProcess();
+
+        void clear();
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
               const std::filesystem::path &workingPath, int sync, const Option &option = Option());
 
     void Create();
-    void Start();
-    void Kill();
-    void Exec(const OCI::Config::Process &p);
-
     struct OCI::Runtime::State state;
     std::string ID;
     std::unique_ptr<OCI::Config> config;
@@ -117,6 +117,12 @@ public:
     std::unique_ptr<Rootfs> rootfs;
     std::unique_ptr<Init> init;
 };
+
+class ContainerRef
+{
+
+};
+
 } // namespace linglong
 
 #endif /* LINGLONG_BOX_SRC_CONTAINER_H */

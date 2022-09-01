@@ -68,7 +68,7 @@ void Container::Rootfs::run()
 
         this->container->sync << this->container->init->pid;
 
-        this->exec();
+        this->clear();
         exit(-1);
     } catch (const util::RuntimeError &e) {
         std::stringstream s;
@@ -150,7 +150,7 @@ void Container::Rootfs::prepareRootfs()
     }
 }
 
-void Container::Rootfs::exec()
+void Container::Rootfs::clear()
 {
     // TODO:
 }

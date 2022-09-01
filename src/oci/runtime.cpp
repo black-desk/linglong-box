@@ -1,18 +1,20 @@
 #include <fcntl.h>
 #include <filesystem>
-#include <fmt/format.h>
 #include <fstream>
 #include <stdexcept>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
-#include "nlohmann/json.hpp"
-#include "runtime.h"
+#include <fmt/format.h>
+#include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
-#include "spdlog/spdlog.h"
+#include "container/container.h"
+#include "runtime.h"
 #include "util/exception.h"
 #include "util/filesystem.h"
 #include "util/lock.h"
-#include "container/container.h"
 
 namespace linglong {
 namespace OCI {
@@ -60,7 +62,28 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             nlohmann::json configJson;
             configJsonFile >> configJson;
 
-            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, 1,
+            int socketFD = -1;
+
+            {
+                socketFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+                if (socketFD != -1) {
+                    throw util::RuntimeError(fmt::format("Failed to create socket: {}", strerror(errno)));
+                }
+
+                std::filesystem::path addr = this->workingDir / "socket";
+
+                sockaddr_un name = {};
+                name.sun_family = AF_UNIX;
+                strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
+
+                int ret = -1;
+                ret = bind(socketFD, (const sockaddr *)&name, sizeof(name));
+                if (ret == -1) {
+                    throw util::RuntimeError(fmt::format("Failed to bind socket to \"{}\": {}", strerror(errno)));
+                }
+            }
+
+            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, socketFD,
                                           {
                                               false,
                                               false,
@@ -112,6 +135,14 @@ void Runtime::updateState(const std::filesystem::path &containerWorkingDir, cons
 
 void Runtime::Start(const std::string &containerID, const bool interactive)
 {
+    using linglong::util::FlockGuard;
+
+    auto containerWorkingDir = this->workingDir / containerID;
+
+    try {
+        
+    } catch (const std::runtime_error &e) {
+    }
 }
 
 void Runtime::Kill(const std::string &containerID)

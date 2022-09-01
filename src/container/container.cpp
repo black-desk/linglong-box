@@ -18,14 +18,14 @@ namespace linglong {
 
 Container::Container(const std::string &containerID, const std::filesystem::path &bundle,
                      const nlohmann::json &configJson, const std::filesystem::path &workingPath,
-                     int createContainerSocket, const Option &option)
+                     int socket, const Option &option)
     : ID(containerID)
     , workingPath(workingPath)
     , bundlePath(bundle)
     , option(option)
     , monitor(new Monitor(this))
     , rootfs(new Rootfs(this))
-    , init(new Init(this))
+    , init(new Init(this,socket))
 {
     this->config.reset(new OCI::Config);
     configJson.get_to(*this->config.get());
@@ -86,6 +86,11 @@ void makeSureParentSurvive(pid_t ppid) noexcept
 
 void ignoreParentDie() noexcept
 {
+    int ret = -1;
+    ret = prctl(PR_SET_PDEATHSIG, 0);
+    if (ret) {
+        spdlog::warn("Failed to clear PDEATHSIG: {}", strerror(errno));
+    }
 }
 
 int _(void *arg)

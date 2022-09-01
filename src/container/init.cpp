@@ -8,6 +8,7 @@
 #include <sys/prctl.h>
 #include <sys/mman.h>
 #include <sys/sysmacros.h>
+#include <sys/socket.h>
 
 #include <spdlog/spdlog.h>
 
@@ -20,10 +21,10 @@ static const uint PTSNAME_LEN = 64;
 
 namespace linglong {
 
-Container::Init::Init(Container *const container)
+Container::Init::Init(Container *const container, int socket)
     : container(container)
+    , socket(socket)
 {
-    const auto &config = this->container->config;
 }
 
 void Container::Init::init(pid_t ppid) noexcept
@@ -105,8 +106,7 @@ void Container::Init::run()
 
             this->pivotRoot();
 
-            this->listen();
-
+            this->waitStart();
         } catch (const util::RuntimeError &e) {
             std::stringstream s;
             util::printException(s, e);
@@ -327,7 +327,60 @@ void Container::Init::pivotRoot()
     }
 }
 
-void Container::Init::listen()
+void Container::Init::waitStart()
+{
+    int ret = listen(this->socket, 1);
+    if (ret) {
+        throw util::RuntimeError(fmt::format("Failed to listen socket: {}", strerror(errno)));
+    }
+
+    spdlog::debug("init: waiting start command");
+    int startRequestFD = accept(this->socket, nullptr, nullptr);
+    spdlog::debug("init: done");
+
+    util::Pipe conn(std::unique_ptr<util::FD>(new util::FD(startRequestFD)));
+
+    util::Message startRequest;
+    conn >> startRequest;
+
+    const auto &config = *this->container->config;
+
+    if (config.hooks.has_value() && config.hooks->startContainer.has_value()) {
+        for (const auto &hook : config.hooks->startContainer.value()) {
+            execHook(hook);
+        }
+    }
+
+    this->execProcess();
+
+    try {
+        this->container->monitor->sync << 0;
+
+        int msg = -1;
+
+        this->sync >> msg;
+
+        util::Message startResponse({
+            msg,
+            {this->terminalFD->fd},
+        });
+
+        conn << startResponse;
+
+        this->clear();
+
+    } catch (const util::RuntimeError &e) {
+        std::stringstream s;
+        util::printException(s, e);
+        spdlog::error("init: Unhanded exception occur after exec process: {}", s);
+    } catch (const std::exception &e) {
+        spdlog::error("init: Unhanded exception occur after exec process: {}", e.what());
+    } catch (...) {
+        spdlog::error("init: Unhanded exception occur after exec process");
+    }
+}
+
+void Container::Init::execProcess()
 {
 }
 
