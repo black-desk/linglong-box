@@ -367,7 +367,7 @@ void Container::Init::waitStart()
 
         conn << startResponse;
 
-        this->clear();
+        this->clear(conn);
 
     } catch (const std::exception &e) {
         std::stringstream s;

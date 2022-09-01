@@ -97,7 +97,7 @@ public:
         void waitStart();
         void execProcess();
 
-        void clear();
+        void clear(util::Pipe &conn);
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

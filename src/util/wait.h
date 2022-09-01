@@ -11,17 +11,16 @@
 namespace linglong::util {
 
 // (return code, terminate signal)
-inline std::pair<std::optional<int>, std::optional<int>> parse_wstatus(const int &wstatus)
+inline std::pair<bool, int> parse_wstatus(const int &wstatus)
 {
     if (WIFEXITED(wstatus)) {
         auto code = WEXITSTATUS(wstatus);
-        return {code, std::nullopt};
+        return {false, code};
     } else if (WIFSIGNALED(wstatus)) {
-        return {std::nullopt, WTERMSIG(wstatus)};
+        return {true, WTERMSIG(wstatus)};
     } else {
-        // FIXME: should we handle STOP?
-        spdlog::error("unhandled wstatus {}", wstatus);
-        return {std::nullopt, std::nullopt};
+        // FIXME:
+        throw std::runtime_error(fmt::format("unexpected wstatus={}", wstatus));
     }
 }
 
