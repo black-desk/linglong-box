@@ -144,6 +144,7 @@ void Runtime::Start(const std::string &containerID, const bool interactive)
         }
 
         if (interactive) {
+            // TODO: check stdin/stdout is a tty
             proxy(0, 1, c->terminalFD.fd);
         }
 
