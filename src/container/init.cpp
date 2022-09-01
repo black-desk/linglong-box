@@ -105,7 +105,7 @@ void Container::Init::run()
 
             this->pivotRoot();
 
-            this->listenUnixSocket();
+            this->listen();
 
         } catch (const util::RuntimeError &e) {
             std::stringstream s;
@@ -327,11 +327,8 @@ void Container::Init::pivotRoot()
     }
 }
 
-void Container::Init::listenUnixSocket()
+void Container::Init::listen()
 {
-    // listen exec
-    // wait start
-    // send terminal fd
 }
 
 } // namespace linglong

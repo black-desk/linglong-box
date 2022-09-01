@@ -93,7 +93,7 @@ public:
         void setConsole();
 
         void pivotRoot();
-        void listenUnixSocket();
+        void listen();
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

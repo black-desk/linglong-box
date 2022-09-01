@@ -22,14 +22,16 @@ void showHelpInfomationError(int argc, char **argv)
 
 static std::string helpInfomation = R"(OCI runtime for linglong.
 
-  Usage: ll-box create CONTAINER_ID [PATH_TO_BUNDLE]
-         ll-box start [-i] CONTAINER_ID
-         ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
-         ll-box exec [-d] CONTAINER_ID -- COMMAND
-         ll-box stop CONTAINER_ID
-         ll-box state CONTAINER_ID
-         ll-box kill CONTAINER_ID
-         ll-box delete CONTAINER_ID
+  Usage: ll-box [GLOBAL OPTIONS] SUB_COMMAND ...
+
+         ll-box [GLOBAL OPTIONS] create CONTAINER_ID [PATH_TO_BUNDLE]
+         ll-box [GLOBAL OPTIONS] start [-i] CONTAINER_ID
+         ll-box [GLOBAL OPTIONS] exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
+         ll-box [GLOBAL OPTIONS] exec [-d] CONTAINER_ID -- COMMAND
+         ll-box [GLOBAL OPTIONS] stop CONTAINER_ID
+         ll-box [GLOBAL OPTIONS] state CONTAINER_ID
+         ll-box [GLOBAL OPTIONS] kill CONTAINER_ID
+         ll-box [GLOBAL OPTIONS] delete CONTAINER_ID
          ll-box --help # show this help information)";
 
 static std::runtime_error unexpectedCommandLineArgumentsError("unexpected command line arguments");
