@@ -239,13 +239,8 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
 {
     // https://github.com/opencontainers/runc/blob/0ca91f44f1664da834bc61115a849b56d22f595f/libcontainer/utils/utils.go#L112
     try {
-        int fd = openat(root.fd, m.destination.c_str(), O_PATH | O_CLOEXEC);
-        if (fd < 0) {
-            throw std::runtime_error(
-                fmt::format("Failed to open \"{}\" in container: {}", m.destination, strerror(errno)));
-        }
-
-        auto realpath = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", fd));
+        util::FD fd(openat(root.fd, m.destination.c_str(), O_PATH | O_CLOEXEC));
+        auto realpath = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", fd.fd));
 
         if (realpath.string().rfind(rootpath.string(), 0) != 0) {
             throw std::runtime_error(fmt::format("possibly malicious path detected ({} vs {}), refusing to operate",
@@ -254,8 +249,6 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
         std::string data = std::accumulate(m.parsed->data.begin(), m.parsed->data.end(), ",");
         auto ret =
             mount(m.source.value().c_str(), realpath.c_str(), m.type.value().c_str(), m.parsed->flags, data.c_str());
-
-        close(fd);
 
         errno = olderrno;
         return ret;
