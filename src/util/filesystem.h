@@ -11,13 +11,14 @@
 #ifndef LINGLONG_BOX_SRC_UTIL_FILESYSTEM_H_
 #define LINGLONG_BOX_SRC_UTIL_FILESYSTEM_H_
 
+#include "util/fd.h"
 #include <filesystem>
 namespace linglong::util::fs {
-
-bool mkdirp(std::filesystem::path path, __mode_t mode);
-bool mkdir(std::filesystem::path path, __mode_t mode);
-bool rm(std::filesystem::path path);
-bool rmrf(std::filesystem::path path);
+void touch(std::filesystem::path path, __mode_t mode);
+void mkdirp(std::filesystem::path path, __mode_t mode);
+void mkdiratp(const util::FD &parent, std::filesystem::path path, __mode_t mode);
+void mkdir(std::filesystem::path path, __mode_t mode);
+void rmrf(std::filesystem::path path);
 
 } // namespace linglong::util::fs
 

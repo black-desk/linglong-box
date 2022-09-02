@@ -30,7 +30,14 @@ std::string fuseOverlayfsPath();
 
 std::vector<std::string> environPassThrough();
 
-void doMount(const linglong::OCI::Config::Mount &, const util::FD &root,const std::filesystem::path& rootpath, bool ignoreError = false);
+struct doMountOption {
+    bool ignoreError;
+    bool resolveRealPath;
+    bool fallback;
+};
+
+void doMount(const linglong::OCI::Config::Mount &, const util::FD &root, const std::filesystem::path &rootpath,
+             const doMountOption &opt = {false, true, true});
 
 class Container
 {

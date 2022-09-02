@@ -15,6 +15,8 @@
 #include "container.h"
 
 #include "nlohmann/json.hpp"
+#include "util/exception.h"
+#include "util/filesystem.h"
 #include "util/sync.h"
 #include "util/wait.h"
 
@@ -235,24 +237,71 @@ std::vector<std::string> environPassThrough()
 }
 
 void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const std::filesystem::path rootpath,
-             bool ignoreError)
+             const doMountOption &opt)
 {
     // https://github.com/opencontainers/runc/blob/0ca91f44f1664da834bc61115a849b56d22f595f/libcontainer/utils/utils.go#L112
     try {
-        util::FD fd(openat(root.fd, m.destination.c_str(), O_PATH | O_CLOEXEC));
-        auto realpath = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", fd.fd));
-
-        if (realpath.string().rfind(rootpath.string(), 0) != 0) {
-            throw std::runtime_error(fmt::format("possibly malicious path detected ({} vs {}), refusing to operate",
-                                                 m.destination, realpath));
+        if (m.source.has_value()) {
+            if (!std::filesystem::is_directory(m.source.value())) {
+                util::fs::touch(rootpath / m.destination, 0644);
+            } else {
+                util::fs::mkdirp(rootpath / m.destination, 0644);
+            }
         }
-        std::string data = std::accumulate(m.parsed->data.begin(), m.parsed->data.end(), ",");
-        auto ret =
-            mount(m.source.value().c_str(), realpath.c_str(), m.type.value().c_str(), m.parsed->flags, data.c_str());
 
-        errno = olderrno;
-        return ret;
-    } catch (...) {
+        std::unique_ptr<util::FD> destination(new util::FD(openat(root.fd, m.destination.c_str(), O_PATH | O_CLOEXEC)));
+        auto realDestination = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", destination->fd));
+        if (realDestination.string().rfind(rootpath.string(), 0) != 0) {
+            throw std::runtime_error(fmt::format("possibly malicious path detected ({} vs {}), refusing to operate",
+                                                 m.destination, realDestination));
+        }
+
+        std::unique_ptr<util::FD> source;
+        if (m.source.has_value()) {
+            char *buffer = nullptr;
+            const char *real = nullptr;
+            if (opt.resolveRealPath) {
+                buffer = (char *)malloc(PATH_MAX);
+                if (!buffer) {
+                    spdlog::warn("Failed to malloc memory for realpath: {}", strerror(errno));
+                } else {
+                    real = realpath(m.source->c_str(), buffer);
+                    if (real == nullptr) {
+                        spdlog::warn("Failed to get realpath of mount source \"{}\": {}", m.source.value(),
+                                     strerror(errno));
+                    }
+                }
+            }
+            source.reset(new util::FD(open(real ? real : m.source->c_str(), O_PATH | O_CLOEXEC)));
+            free(buffer);
+        }
+
+        std::string sourcePath = source ? fmt::format("/proc/self/fd/{}", source->fd) : "";
+        std::string destinationPath = fmt::format("/proc/self/fd/{}", destination->fd);
+
+        auto join = [](std::string &first, const std::string &second) -> std::string & { return first += second; };
+        std::string data = std::accumulate(m.parsed->data.begin(), m.parsed->data.end(), std::string(), join);
+
+        if(opt.fallback){}
+
+        auto ret = mount(sourcePath.c_str(), realDestination.c_str(), m.type.value_or("").c_str(), m.parsed->flags,
+                         data.c_str());
+        if (ret) {
+            throw std::runtime_error(fmt::format(
+                "syscall mount (source=\"{}\",destination=\"{}\",filesystem=\"{}\",flags={},data={}) failed: {}",
+                sourcePath, realDestination, m.type.value_or(""), m.parsed->flags, data.c_str(), strerror(errno)));
+        }
+
+        bool needRemount = (data.empty() && (m.parsed->flags & ~(MS_BIND | MS_REC | MS_REMOUNT)) == 0);
+        if (needRemount) { }
+    } catch (std::runtime_error &e) {
+        if (opt.ignoreError) {
+            std::stringstream buffer;
+            util::printException(buffer, e);
+            spdlog::warn("Failed to preform mount [{}]: {}", m, buffer);
+        } else {
+            std::throw_with_nested(fmt::format("Failed to preform mount [{}]", m));
+        }
     }
 }
 
