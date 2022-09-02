@@ -236,7 +236,7 @@ std::vector<std::string> environPassThrough()
     return {};
 }
 
-void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const std::filesystem::path rootpath,
+void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const std::filesystem::path &rootpath,
              const doMountOption &opt)
 {
     // https://github.com/opencontainers/runc/blob/0ca91f44f1664da834bc61115a849b56d22f595f/libcontainer/utils/utils.go#L112
@@ -282,18 +282,72 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
         auto join = [](std::string &first, const std::string &second) -> std::string & { return first += second; };
         std::string data = std::accumulate(m.parsed->data.begin(), m.parsed->data.end(), std::string(), join);
 
-        if(opt.fallback){}
+        auto type = m.type.has_value() ? to_string(nlohmann::json(m.type.value())) : "";
 
-        auto ret = mount(sourcePath.c_str(), realDestination.c_str(), m.type.value_or("").c_str(), m.parsed->flags,
-                         data.c_str());
-        if (ret) {
-            throw std::runtime_error(fmt::format(
-                "syscall mount (source=\"{}\",destination=\"{}\",filesystem=\"{}\",flags={},data={}) failed: {}",
-                sourcePath, realDestination, m.type.value_or(""), m.parsed->flags, data.c_str(), strerror(errno)));
+        try {
+            auto ret = mount(sourcePath.c_str(), realDestination.c_str(), type.c_str(), m.parsed->flags, data.c_str());
+            if (ret) {
+                throw std::runtime_error(fmt::format(
+                    "syscall mount (source=\"{}\",destination=\"{}\",filesystem=\"{}\",flags={},data={}) failed: {}",
+                    sourcePath, realDestination, nlohmann::json(m.type), m.parsed->flags, data.c_str(),
+                    strerror(errno)));
+            }
+        } catch (std::runtime_error &e) {
+            if (opt.fallback) {
+                std::stringstream buffer;
+                util::printException(buffer, e);
+                spdlog::warn("mount [{}] failed: {}, try fallback now", m, buffer);
+                try {
+                    if (m.type == OCI::Config::Mount::Type::Sysfs) {
+                        OCI::Config::Mount fallbackMount(nlohmann::json({
+                            {"source", "/sys"},
+                            {"destination", "/sys"},
+                            {"type", "bind"},
+                            {"option", "rbind,ro"},
+                        })); // should not contain any relative path
+                        fallbackMount.parse("/");
+                        doMount(fallbackMount, root, rootpath,
+                                {
+                                    opt.ignoreError,
+                                    opt.resolveRealPath,
+                                    false,
+                                });
+                    } else if (m.type == OCI::Config::Mount::Type::Mqueue) {
+                        OCI::Config::Mount fallbackMount(nlohmann::json({
+                            {"source", "/dev/mqueue"},
+                            {"destination", "/mqueue"},
+                            {"type", "bind"},
+                            {"option", "rbind"},
+                        })); // should not contain any relative path
+                        fallbackMount.parse("/");
+                        doMount(fallbackMount, root, rootpath,
+                                {
+                                    opt.ignoreError,
+                                    opt.resolveRealPath,
+                                    false,
+                                });
+                    } else {
+                        throw;
+                    }
+                } catch (...) {
+                    throw;
+                }
+            } else {
+                throw;
+            }
         }
 
         bool needRemount = (data.empty() && (m.parsed->flags & ~(MS_BIND | MS_REC | MS_REMOUNT)) == 0);
-        if (needRemount) { }
+        if (needRemount) {
+            auto ret = mount(sourcePath.c_str(), realDestination.c_str(), type.c_str(), m.parsed->flags | MS_REMOUNT,
+                             data.c_str());
+            if (ret) {
+                throw std::runtime_error(fmt::format(
+                    "syscall mount (source=\"{}\",destination=\"{}\",filesystem=\"{}\",flags={},data={}) failed: {}",
+                    sourcePath, realDestination, nlohmann::json(m.type), m.parsed->flags | MS_REMOUNT, data.c_str(),
+                    strerror(errno)));
+            }
+        }
     } catch (std::runtime_error &e) {
         if (opt.ignoreError) {
             std::stringstream buffer;

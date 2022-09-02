@@ -6,7 +6,7 @@
 
 namespace linglong::util {
 
-inline void printException(std::ostream &out, const std::exception &e, int depth = 0)
+inline void printException(std::ostream &out, const std::exception &e, int depth = 0) noexcept
 {
     for (int i = 1; i <= depth; i++) {
         out << "  ";

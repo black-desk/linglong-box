@@ -2,15 +2,6 @@
 
 using linglong::OCI::Config;
 
-const Config::Mount::Type Config::Mount::Bind = "bind";
-const Config::Mount::Type Config::Mount::Proc = "proc";
-const Config::Mount::Type Config::Mount::Sysfs = "sysfs";
-const Config::Mount::Type Config::Mount::Devpts = "devpts";
-const Config::Mount::Type Config::Mount::Mqueue = "mqueue";
-const Config::Mount::Type Config::Mount::Tmpfs = "tmpfs";
-const Config::Mount::Type Config::Mount::Cgroup = "cgroup";
-const Config::Mount::Type Config::Mount::Cgroup2 = "cgroup2";
-
 const Config::MountPropagation Config::Share = "share";
 const Config::MountPropagation Config::Slave = "slave";
 const Config::MountPropagation Config::Unbindable = "unbindable";

@@ -34,9 +34,7 @@ struct Config {
     //
     // POSIX https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#posix-platform-mounts
     struct Mount {
-        using Type = std::string;
-
-        static const Type Bind, Proc, Sysfs, Devpts, Mqueue, Tmpfs, Cgroup, Cgroup2;
+        enum Type { Bind, Proc, Sysfs, Devpts, Mqueue, Tmpfs, Cgroup, Cgroup2 };
 
         std::filesystem::path destination;
         std::optional<std::filesystem::path> source;
@@ -651,7 +649,7 @@ struct Config {
 
     void parse(const std::filesystem::path &bundlePath);
 };
-
+#define JSON_DISABLE_ENUM_SERIALIZATION 1
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Root, path, readonly);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::IDMapping, containerID, hostID, size);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Mount, type, uidMappings, gidMappings, destination, source,
@@ -840,7 +838,15 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Seccomp, defaultAction, 
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Personality::Domain, {{Config::Personality::Domain::Linux, "LINUX"},
                                                            {Config::Personality::Domain::Linux32, "LINUX32"}});
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Personality, domain, flags);
-
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Mount::Type, {
+                                                      {Config::Mount::Type::Bind, "bind"},
+                                                      {Config::Mount::Type::Cgroup, "cgroup"},
+                                                      {Config::Mount::Type::Cgroup2, "cgroup2"},
+                                                      {Config::Mount::Type::Devpts, "devpts"},
+                                                      {Config::Mount::Type::Mqueue, "mqueue"},
+                                                      {Config::Mount::Type::Sysfs, "sysfs"},
+                                                      {Config::Mount::Type::Tmpfs, "tmpfs"},
+                                                  });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config, ociVersion, root, mounts, process, hostname, hooks, annotations,
                                                 namespaces, uidMappings, gidMappings, devices, cgroupsPath, resources,
                                                 unified, sysctl, seccomp, rootfsPropagation, maskedPaths, readonlyPaths,
