@@ -145,7 +145,7 @@ void Container::Rootfs::prepareRootfs()
 
     if (config->annotations->rootfs.has_value() && config->annotations->rootfs->native.has_value()) {
         for (const auto &mount : config->annotations->rootfs->native->mounts) {
-            doMount(mount, config->root.path);
+            doMount(mount, *this->container->containerRoot);
         }
     }
 }

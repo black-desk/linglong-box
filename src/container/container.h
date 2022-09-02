@@ -30,7 +30,7 @@ std::string fuseOverlayfsPath();
 
 std::vector<std::string> environPassThrough();
 
-void doMount(const linglong::OCI::Config::Mount &, const std::filesystem::path &check = "/", bool ignoreError = false);
+void doMount(const linglong::OCI::Config::Mount &, const util::FD &root,const std::filesystem::path& rootpath, bool ignoreError = false);
 
 class Container
 {
@@ -107,9 +107,9 @@ public:
     struct OCI::Runtime::State state;
     std::string ID;
     std::unique_ptr<OCI::Config> config;
-    std::filesystem::path workingPath;
     std::filesystem::path bundlePath;
     Option option;
+    std::unique_ptr<util::FD> containerRoot;
 
     util::Pipe sync;
 

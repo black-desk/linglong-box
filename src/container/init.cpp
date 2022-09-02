@@ -160,7 +160,7 @@ void Container::Init::setNS()
 void Container::Init::setMounts()
 {
     const auto &mounts = this->container->config->mounts.value_or(std::vector<OCI::Config::Mount>());
-    const auto &root = this->container->config->root.path;
+    const auto &root = *this->container->containerRoot;
     for (const auto &mount : mounts) {
         doMount(mount, root, this->container->option.IgnoreMountFail);
     }
@@ -208,7 +208,7 @@ void Container::Init::setDevices()
             }
         } else {
             doMount({d.path, d.path, std::nullopt, OCI::Config::Mount::Bind, std::nullopt, std::nullopt},
-                    this->container->config->root.path, this->container->option.IgnoreMountFail);
+                    *this->container->containerRoot, this->container->option.IgnoreMountFail);
         }
     }
 
@@ -216,7 +216,7 @@ void Container::Init::setDevices()
     // NOTE: ignore fail here as maybe /dev/pts might not mount
     doMount({"/dev/ptmx", this->container->config->root.path / "dev/pts/ptmx", std::nullopt, OCI::Config::Mount::Bind,
              std::nullopt, std::nullopt},
-            this->container->config->root.path, true);
+            *this->container->containerRoot, true);
 }
 
 void Container::Init::setLink()

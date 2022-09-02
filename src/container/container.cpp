@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/prctl.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <wait.h>
 
 #include <fmt/format.h>
@@ -23,7 +24,6 @@ Container::Container(const std::string &containerID, const std::filesystem::path
                      const nlohmann::json &configJson, const std::filesystem::path &workingPath, int socket,
                      const Option &option)
     : ID(containerID)
-    , workingPath(workingPath)
     , bundlePath(bundle)
     , option(option)
     , monitor(new Monitor(this))
@@ -33,6 +33,8 @@ Container::Container(const std::string &containerID, const std::filesystem::path
     this->config.reset(new OCI::Config);
     configJson.get_to(*this->config.get());
     this->config->parse(bundlePath);
+
+    this->containerRoot.reset(new util::FD(open(this->config->root.path.c_str(), O_PATH | O_CLOEXEC)));
 
     this->state = {this->config->ociVersion,
                    containerID,
@@ -232,42 +234,26 @@ std::vector<std::string> environPassThrough()
     return {};
 }
 
-void doMount(const linglong::OCI::Config::Mount &m, const std::filesystem::path &root, bool ignoreError)
+void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const std::filesystem::path rootpath,
+             bool ignoreError)
 {
     // https://github.com/opencontainers/runc/blob/0ca91f44f1664da834bc61115a849b56d22f595f/libcontainer/utils/utils.go#L112
     try {
-        auto destination = root / m.destination;
-        int fd = open(destination.c_str(), O_PATH | O_CLOEXEC);
+        int fd = openat(root.fd, m.destination.c_str(), O_PATH | O_CLOEXEC);
         if (fd < 0) {
-            throw std::runtime_error(fmt::format("Failed to open {}: {}", destination, strerror(errno)));
+            throw std::runtime_error(
+                fmt::format("Failed to open \"{}\" in container: {}", m.destination, strerror(errno)));
         }
 
-        auto realDestination = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", fd));
+        auto realpath = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", fd));
 
-        // Refer to `man readlink`, readlink dose not append '\0' to the end of conent it read from path, so we have to
-        // add an extra char to buffer to ensure '\0' always exists.
-        char *buf = (char *)malloc(sizeof(char) * PATH_MAX + 1);
-        if (buf == nullptr) {
-            logFal() << "fail to alloc memery:" << errnoString();
+        if (realpath.string().rfind(rootpath.string(), 0) != 0) {
+            throw std::runtime_error(fmt::format("possibly malicious path detected ({} vs {}), refusing to operate",
+                                                 m.destination, realpath));
         }
-
-        memset(buf, 0, PATH_MAX + 1);
-
-        auto target = util::format("/proc/self/fd/%d", fd);
-        int len = readlink(target.c_str(), buf, PATH_MAX);
-        if (len == -1) {
-            logFal() << util::format("fail to readlink from proc fd (%s):", target.c_str()) << errnoString();
-        }
-
-        string realpath(buf);
-        if (realpath.rfind(root, 0) != 0) {
-            logDbg() << util::format("container root=\"%s\"", root);
-            logFal() << util::format("possibly malicious path detected (%s vs %s) -- refusing to operate",
-                                     target.c_str(), realpath.c_str());
-        }
-
-        auto ret = ::mount(__special_file, target.c_str(), __fstype, __rwflag, __data);
-        auto olderrno = errno;
+        std::string data = std::accumulate(m.parsed->data.begin(), m.parsed->data.end(), ",");
+        auto ret =
+            mount(m.source.value().c_str(), realpath.c_str(), m.type.value().c_str(), m.parsed->flags, data.c_str());
 
         close(fd);
 
