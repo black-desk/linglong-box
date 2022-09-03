@@ -161,8 +161,24 @@ void Container::Init::setMounts()
 {
     const auto &mounts = this->container->config->mounts.value_or(std::vector<OCI::Config::Mount>());
     const auto &root = *this->container->containerRoot;
-    for (const auto &mount : mounts) {
-        doMount(mount, root, this->container->option.IgnoreMountFail);
+    try {
+        for (const auto &mount : mounts) {
+            doMount(mount, root, this->container->config->root.path,
+                    {this->container->option.IgnoreMountFail, true, true});
+        }
+    } catch (...) {
+        for (auto it = mounts.rbegin(); it != mounts.rend(); it++) {
+            try {
+                doUmount(*it, root);
+            } catch (const std::runtime_error &e) {
+                std::stringstream buffer;
+                util::printException(buffer, e);
+                spdlog::warn(buffer);
+            } catch (...) {
+                spdlog::warn("Failed to umount");
+            }
+        }
+        std::rethrow_if_nested(std::runtime_error("Failed to setup container mounts"));
     }
 }
 
@@ -208,15 +224,21 @@ void Container::Init::setDevices()
             }
         } else {
             doMount({d.path, d.path, std::nullopt, OCI::Config::Mount::Bind, std::nullopt, std::nullopt},
-                    *this->container->containerRoot, this->container->option.IgnoreMountFail);
+                    *this->container->containerRoot, this->container->config->root.path,
+                    {this->container->option.IgnoreMountFail, true, true});
         }
     }
 
     // FIXME: use symbol link?
     // NOTE: ignore fail here as maybe /dev/pts might not mount
-    doMount({"/dev/ptmx", this->container->config->root.path / "dev/pts/ptmx", std::nullopt, OCI::Config::Mount::Bind,
-             std::nullopt, std::nullopt},
-            *this->container->containerRoot, true);
+    OCI::Config::Mount ptmxMount(nlohmann::json({
+        {"source", this->container->config->root.path / "dev/pts/ptmx"},
+        {"destination", "/dev/ptmx"},
+        {"type", "bind"},
+        {"option", "rbind"},
+    })); // should not contain any relative path
+    ptmxMount.parse("/");
+    doMount(ptmxMount, *this->container->containerRoot, this->container->config->root.path, {true, false, false});
 }
 
 void Container::Init::setLink()

@@ -39,6 +39,8 @@ struct doMountOption {
 void doMount(const linglong::OCI::Config::Mount &, const util::FD &root, const std::filesystem::path &rootpath,
              const doMountOption &opt = {false, true, true});
 
+void doUmount(const linglong::OCI::Config::Mount &, const util::FD &root);
+
 class Container
 {
 public:

@@ -315,7 +315,7 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
                     } else if (m.type == OCI::Config::Mount::Type::Mqueue) {
                         OCI::Config::Mount fallbackMount(nlohmann::json({
                             {"source", "/dev/mqueue"},
-                            {"destination", "/mqueue"},
+                            {"destination", "/dev/mqueue"},
                             {"type", "bind"},
                             {"option", "rbind"},
                         })); // should not contain any relative path
@@ -356,6 +356,16 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
         } else {
             std::throw_with_nested(fmt::format("Failed to preform mount [{}]", m));
         }
+    }
+}
+
+void doUmount(const linglong::OCI::Config::Mount &m, const util::FD &root)
+{
+    std::unique_ptr<util::FD> destination(new util::FD(openat(root.fd, m.destination.c_str(), O_PATH | O_CLOEXEC)));
+    auto destinationFDPath = fmt::format("/proc/self/fd/{}", destination->fd);
+    auto ret = umount(destinationFDPath.c_str());
+    if (ret) {
+        throw std::runtime_error(fmt::format("Failed to umount [{}]: {}", m, strerror(errno)));
     }
 }
 
