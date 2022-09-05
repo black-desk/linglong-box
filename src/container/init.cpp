@@ -453,10 +453,29 @@ pid_t Container::Init::execProcess(const OCI::Config::Process &process)
 
 void Container::Init::exec(util::Pipe p, pid_t pid)
 {
-    // TODO:
-    this->socket;
-    p.fd;
-    pid;
+    int fdlimit = (int)sysconf(_SC_OPEN_MAX);
+    for (int i = STDERR_FILENO + 1; i < fdlimit; i++) {
+        if (i != this->socket && i != p.fd) {
+            close(i);
+        }
+    }
+
+    auto listenFDStr = std::to_string(this->socket);
+    auto startFDStr = std::to_string(p.fd);
+    auto pidStr = std::to_string(pid);
+
+    const char *args[5] = {
+        "init",
+        listenFDStr.c_str(),
+        startFDStr.c_str(),
+        pidStr.c_str(),
+    };
+
+    int ret = execve("/proc/self/exe", const_cast<char *const *>(args), environ);
+    if (ret) {
+        spdlog::error("Failed to exec init: {}", strerror(errno));
+        return;
+    }
 }
 
 } // namespace linglong
