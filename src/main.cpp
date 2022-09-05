@@ -15,10 +15,20 @@
 #include <spdlog/spdlog.h>
 
 #include "commands.h"
+#include "init.h"
+#include "monitor.h"
 #include "util/exception.h"
 
 int main(int argc, char **argv)
 {
+    if (std::string(argv[0]) == "init") {
+        init(std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]));
+        return 0;
+    } else if (std::string(argv[0]) == "monitor") {
+        monitor(argv[1]);
+        return 0;
+    }
+
     auto cmd = showHelpInfomationError;
 
     if (argc >= 2) {

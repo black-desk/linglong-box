@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 namespace linglong::util {
+
 struct Message {
     nlohmann::json raw;
     std::vector<util::FD> fds;
