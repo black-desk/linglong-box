@@ -70,7 +70,29 @@ void Container::Create()
 void configIDMapping(pid_t target, const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &uidMappings,
                      const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &gidMappings)
 {
-    // TODO:
+    try {
+        if (uidMappings.has_value()) {
+            std::ofstream uidMapFile(std::filesystem::path("/proc") / std::to_string(target) / "uid_map");
+            for (auto const &idMap : uidMappings.value()) {
+                uidMapFile << fmt::format("{} {} {}\n", idMap.containerID, idMap.hostID, idMap.size);
+            }
+        }
+
+        if (gidMappings.has_value()) {
+            {
+                std::ofstream setgroupsFile(std::filesystem::path("/proc") / std::to_string(target) / "setgroups");
+                setgroupsFile << "deny";
+            }
+            std::ofstream gidMapFile(std::filesystem::path("/proc") / std::to_string(target) / "gid_map");
+            for (auto const &idMap : gidMappings.value()) {
+                gidMapFile << fmt::format("{} {} {}\n", idMap.containerID, idMap.hostID, idMap.size);
+            }
+        }
+
+        // TODO: fallback to use newuidmap / newgidmap
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("config id mapping failed"));
+    }
 }
 
 struct signalBlocker {
@@ -195,7 +217,6 @@ void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
         }
     } catch (...) {
         std::throw_with_nested(std::runtime_error(fmt::format("execute hook {} failed", hook.path)));
-        throw;
     }
 }
 

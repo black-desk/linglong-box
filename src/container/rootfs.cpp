@@ -134,7 +134,7 @@ void Container::Rootfs::prepareRootfs()
                 fmt::format("workdir={}", overlayfsConfig->workdir),
                 config->root.path,
             }),
-            environPassThrough(), -1};
+            environPassThrough(), 0};
 
         try {
             execHook(overlayfsHook);

@@ -105,9 +105,9 @@ public:
 
         void pivotRoot();
         void waitStart();
-        void execProcess(const OCI::Config::Process &p, util::Pipe &conn);
+        pid_t execProcess(const OCI::Config::Process &p);
 
-        void wait();
+        void exec(util::Pipe sync,pid_t pid);
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

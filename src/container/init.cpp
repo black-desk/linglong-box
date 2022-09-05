@@ -1,3 +1,4 @@
+#include <unistd.h>
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
 
@@ -302,6 +303,10 @@ void Container::Init::setConsole()
 
     this->terminalFD = std::move(pty);
 
+    dup2(this->terminalFD->fd, STDIN_FILENO);
+    dup2(this->terminalFD->fd, STDOUT_FILENO);
+    dup2(this->terminalFD->fd, STDERR_FILENO);
+
     return;
 }
 
@@ -372,11 +377,11 @@ void Container::Init::waitStart()
         }
     }
 
-    if (this->container->config->process.has_value()) {
-        this->execProcess(this->container->config->process.value(), conn);
-    } else {
+    if (!this->container->config->process.has_value()) {
         throw std::runtime_error(fmt::format("Cannot start a container without \"process\""));
     }
+
+    int appPID = this->execProcess(this->container->config->process.value());
 
     // After successfully exec process we should not abandon container, so we have to just report all kind of
     // exception, but not throw them.
@@ -394,7 +399,7 @@ void Container::Init::waitStart()
 
         conn << startResponse;
 
-        this->wait();
+        this->exec(conn, appPID);
 
     } catch (const std::exception &e) {
         std::stringstream s;
@@ -405,12 +410,11 @@ void Container::Init::waitStart()
     }
 }
 
-void Container::Init::execProcess(const OCI::Config::Process &process, util::Pipe &conn)
+pid_t Container::Init::execProcess(const OCI::Config::Process &process)
 {
     util::Pipe sync;
     int appPID = fork();
     if (appPID) { // parent
-        this->map.insert(std::make_pair(appPID, conn));
         sync << 0;
         int ret;
         sync >> ret;
@@ -418,6 +422,7 @@ void Container::Init::execProcess(const OCI::Config::Process &process, util::Pip
             throw std::runtime_error(
                 fmt::format("execve \"{}\" failed: {}", nlohmann::json(process).dump(), strerror(errno)));
         }
+        return appPID;
     } else {
         int ret;
         sync >> ret;
@@ -441,16 +446,17 @@ void Container::Init::execProcess(const OCI::Config::Process &process, util::Pip
         env[processEnv.size()] = nullptr;
 
         ret = execve(args[0], const_cast<char *const *>(args), const_cast<char *const *>(env));
-        if (ret) {
-            sync << errno;
-            exit(-1);
-        }
+        sync << errno;
+        exit(-1);
     }
 }
 
-void Container::Init::wait()
+void Container::Init::exec(util::Pipe p, pid_t pid)
 {
     // TODO:
+    this->socket;
+    p.fd;
+    pid;
 }
 
 } // namespace linglong
