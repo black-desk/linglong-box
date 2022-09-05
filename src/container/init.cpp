@@ -372,8 +372,14 @@ void Container::Init::waitStart()
         }
     }
 
-    this->execProcess();
+    if (this->container->config->process.has_value()) {
+        this->execProcess(this->container->config->process.value(), conn);
+    } else {
+        throw std::runtime_error(fmt::format("Cannot start a container without \"process\""));
+    }
 
+    // After successfully exec process we should not abandon container, so we have to just report all kind of
+    // exception, but not throw them.
     try {
         this->container->monitor->sync << 0;
 
@@ -388,7 +394,7 @@ void Container::Init::waitStart()
 
         conn << startResponse;
 
-        this->clear(conn);
+        this->wait();
 
     } catch (const std::exception &e) {
         std::stringstream s;
@@ -399,8 +405,52 @@ void Container::Init::waitStart()
     }
 }
 
-void Container::Init::execProcess()
+void Container::Init::execProcess(const OCI::Config::Process &process, util::Pipe &conn)
 {
+    util::Pipe sync;
+    int appPID = fork();
+    if (appPID) { // parent
+        this->map.insert(std::make_pair(appPID, conn));
+        sync << 0;
+        int ret;
+        sync >> ret;
+        if (ret) {
+            throw std::runtime_error(
+                fmt::format("execve \"{}\" failed: {}", nlohmann::json(process).dump(), strerror(errno)));
+        }
+    } else {
+        int ret;
+        sync >> ret;
+        int fdlimit = (int)sysconf(_SC_OPEN_MAX);
+        for (int i = STDERR_FILENO + 1; i < fdlimit; i++)
+            close(i);
+
+        const auto &processArgs = process.args;
+        const auto &processEnv = process.env.value_or(std::vector<std::string>());
+        const char *args[processArgs.size() + 1];
+        const char *env[processEnv.size() + 1];
+
+        for (int i = 0; i < processArgs.size(); i++) {
+            args[i] = processArgs[i].c_str();
+        }
+        args[processArgs.size()] = nullptr;
+
+        for (int i = 0; i < processEnv.size(); i++) {
+            env[i] = processEnv[i].c_str();
+        }
+        env[processEnv.size()] = nullptr;
+
+        ret = execve(args[0], const_cast<char *const *>(args), const_cast<char *const *>(env));
+        if (ret) {
+            sync << errno;
+            exit(-1);
+        }
+    }
+}
+
+void Container::Init::wait()
+{
+    // TODO:
 }
 
 } // namespace linglong

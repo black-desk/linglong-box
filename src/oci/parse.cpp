@@ -64,7 +64,7 @@ void Config::parse(const std::filesystem::path &bundlePath)
 
         for (auto &ns : namespaces) {
             if (set.find(ns.type) != set.end()) {
-                throw util::RuntimeError(
+                throw std::runtime_error(
                     fmt::format("config.json is not valid: namespace type \"{}\" duplicate", ns.type));
             }
             set.insert(ns.type);
@@ -82,13 +82,13 @@ void Config::parse(const std::filesystem::path &bundlePath)
 
             for (auto &device : devices) {
                 if (!device.path.is_absolute()) {
-                    throw util::RuntimeError(fmt::format(
+                    throw std::runtime_error(fmt::format(
                         "config.json is not valid: device path \"{}\" is not a absolute path", device.path));
                 }
 
                 auto deviceTuple = std::make_tuple(device.type, device.major, device.minor);
                 if (deviceSet.find(deviceTuple) != deviceSet.end()) {
-                    throw util::RuntimeError(fmt::format(
+                    throw std::runtime_error(fmt::format(
                         "config.json is not valid: device (type=\"{}\", major={}, minor={}) used for multiple devices",
                         device.type, device.major, device.minor));
                 } else {
@@ -143,7 +143,7 @@ void Config::parse(const std::filesystem::path &bundlePath)
             auto &maskedPaths = this->maskedPaths.value();
             for (auto &maskedPath : maskedPaths) {
                 if (!maskedPath.is_absolute()) {
-                    throw util::RuntimeError(fmt::format("maskedPath \"{}\" is not a absolute path.", maskedPath));
+                    throw std::runtime_error(fmt::format("maskedPath \"{}\" is not a absolute path.", maskedPath));
                 }
             }
         }
@@ -154,7 +154,7 @@ void Config::parse(const std::filesystem::path &bundlePath)
             auto &readonlyPaths = this->readonlyPaths.value();
             for (auto &readonlyPath : readonlyPaths) {
                 if (!readonlyPath.is_absolute()) {
-                    throw util::RuntimeError(fmt::format("readonlyPath \"{}\" is not a absolute path.", readonlyPath));
+                    throw std::runtime_error(fmt::format("readonlyPath \"{}\" is not a absolute path.", readonlyPath));
                 }
             }
         }
@@ -182,7 +182,7 @@ void linglong::OCI::Config::Root::parse(std::filesystem::path bundlePath)
         this->path = bundlePath / this->path;
     }
     if (!std::filesystem::exists(this->path)) {
-        throw util::RuntimeError(fmt::format("config.json not valid: root.path (\"{}\") not exists.", this->path));
+        throw std::runtime_error(fmt::format("config.json not valid: root.path (\"{}\") not exists.", this->path));
     }
 }
 
@@ -319,7 +319,7 @@ void linglong::OCI::Config::Mount::parse(std::filesystem::path bundlePath)
     }
 
     if (!this->destination.is_absolute()) {
-        throw util::RuntimeError(fmt::format("mount destination \"{}\" is not a absolute path.", this->destination));
+        throw std::runtime_error(fmt::format("mount destination \"{}\" is not a absolute path.", this->destination));
     }
 
     if (this->source.has_value() && this->source->is_relative()) {
@@ -336,7 +336,7 @@ void Config::Process::parse(const std::filesystem::path &bundlePath)
     }
 
     if (!this->cwd.is_absolute()) {
-        throw util::RuntimeError(fmt::format("config.json not valid: \"process.cwd\" is not a absolute path."));
+        throw std::runtime_error(fmt::format("config.json not valid: \"process.cwd\" is not a absolute path."));
     }
 
     if (!this->env.has_value()) {
@@ -345,7 +345,7 @@ void Config::Process::parse(const std::filesystem::path &bundlePath)
         for (auto &env : environ) {
             auto pos = env.find("=");
             if (pos == std::string::npos) {
-                throw util::RuntimeError(fmt::format(
+                throw std::runtime_error(fmt::format(
                     "config.json not valid: \"process.env\" item \"{}\" is not a vaild environ string.", env));
             }
             auto key = env.substr(0, env.find("="));
@@ -359,7 +359,7 @@ void Config::Process::parse(const std::filesystem::path &bundlePath)
     }
 
     if (this->args.size() < 1) {
-        throw util::RuntimeError(fmt::format("config.json not valid: \"process.args\" must have at least one entry."));
+        throw std::runtime_error(fmt::format("config.json not valid: \"process.args\" must have at least one entry."));
     }
 
     if (this->rlimits.has_value()) {
@@ -400,7 +400,7 @@ void Config::Process::parse(const std::filesystem::path &bundlePath)
 void Config::Namespace::parse(const std::filesystem::path &bundlePath)
 {
     if (this->path.has_value() && !this->path->is_absolute()) {
-        throw util::RuntimeError(
+        throw std::runtime_error(
             fmt::format("config.json is not valid: namespace path \"{}\" is not a absolute path.", this->path));
     }
 }

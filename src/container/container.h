@@ -90,6 +90,7 @@ public:
         util::Pipe sync;
         int socket;
         std::unique_ptr<util::FD> terminalFD;
+        std::map<pid_t, util::Pipe> map;
 
         void init(pid_t ppid) noexcept;
         void setupContainer();
@@ -104,9 +105,9 @@ public:
 
         void pivotRoot();
         void waitStart();
-        void execProcess();
+        void execProcess(const OCI::Config::Process &p, util::Pipe &conn);
 
-        void clear(util::Pipe &conn);
+        void wait();
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,

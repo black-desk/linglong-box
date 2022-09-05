@@ -73,12 +73,28 @@ void configIDMapping(pid_t target, const std::optional<std::vector<linglong::OCI
     // TODO:
 }
 
+struct signalBlocker {
+    signalBlocker(int signo)
+    {
+        sigemptyset(&mask);
+        sigaddset(&mask, signo);
+        int ret = sigprocmask(SIG_BLOCK, &mask, &oldmask);
+        if (ret) {
+            throw std::runtime_error(fmt::format("Failed to block signal: {}", strerror(errno)));
+        }
+    }
+    ~signalBlocker()
+    {
+        int ret = sigprocmask(SIG_BLOCK, &oldmask, nullptr);
+        if (ret) {
+            spdlog::error("Failed to unblock signal: {}", strerror(errno));
+        }
+    }
+    sigset_t mask, oldmask;
+};
+
 void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
 {
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGCHLD);
-
     try {
         int hookPipe[2];
         int ret = pipe(hookPipe);
@@ -93,15 +109,13 @@ void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
         bool has_timeout = hook.timeout.has_value() && hook.timeout;
         time_t start = time(NULL);
 
+        std::unique_ptr<signalBlocker> blocker;
         if (has_timeout) {
-            ret = sigprocmask(SIG_BLOCK, &mask, NULL);
-            if (ret) {
-                throw std::runtime_error(fmt::format("Failed to block sigchld"));
-            }
+            blocker.reset(new signalBlocker(SIGCHLD));
         }
 
         int hookPID = fork();
-        if (hookPID) {
+        if (hookPID) { // father
             close(hookPipe[0]);
             if (has_timeout) {
                 auto timeout = hook.timeout.value();
@@ -110,7 +124,7 @@ void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
                     int elapsed = now - start;
                     struct timespec ts_timeout = {.tv_sec = timeout - elapsed, .tv_nsec = 0};
 
-                    ret = sigtimedwait(&mask, &info, &ts_timeout);
+                    ret = sigtimedwait(&blocker->mask, &info, &ts_timeout);
                     if (ret < 0 && errno != EAGAIN)
                         throw std::runtime_error(fmt::format("Failed to call sigtimedwait: {}", strerror(errno)));
 
@@ -143,7 +157,7 @@ void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
                 throw std::runtime_error(
                     fmt::format("hook failed, exit with {}, stdout & stderr = \"{}\"", code, hookOutput));
             }
-        } else {
+        } else { // child
             ret = dup2(hookPipe[0], STDOUT_FILENO);
             if (ret) {
                 throw std::runtime_error(fmt::format("Failed to dup pipe to STDOUT of hook: {}", strerror(errno)));
@@ -179,13 +193,8 @@ void execHook(const linglong::OCI::Config::Hooks::Hook &hook)
                 exit(-1);
             }
         }
-
     } catch (...) {
-        int ret = -1;
-        ret = sigprocmask(SIG_UNBLOCK, &mask, NULL);
-        if (ret) {
-            std::throw_with_nested(fmt::format("Failed to unblock SIGCHLD: {}", strerror(errno)));
-        }
+        std::throw_with_nested(std::runtime_error(fmt::format("execute hook {} failed", hook.path)));
         throw;
     }
 }
@@ -236,6 +245,48 @@ std::vector<std::string> environPassThrough()
     return {};
 }
 
+void doFallbackMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const std::filesystem::path &rootpath,
+                     const doMountOption &opt)
+{
+    try {
+        if (m.type == OCI::Config::Mount::Type::Sysfs) {
+            OCI::Config::Mount fallbackMount(nlohmann::json({
+                {"source", "/sys"},
+                {"destination", "/sys"},
+                {"type", "bind"},
+                {"option", "rbind,ro"},
+            })); // should not contain any relative path
+            fallbackMount.parse("/");
+            doMount(fallbackMount, root, rootpath,
+                    {
+                        opt.ignoreError,
+                        opt.resolveRealPath,
+                        false,
+                    });
+        } else if (m.type == OCI::Config::Mount::Type::Mqueue) {
+            OCI::Config::Mount fallbackMount(nlohmann::json({
+                {"source", "/dev/mqueue"},
+                {"destination", "/dev/mqueue"},
+                {"type", "bind"},
+                {"option", "rbind"},
+            })); // should not contain any relative path
+            fallbackMount.parse("/");
+            doMount(fallbackMount, root, rootpath,
+                    {
+                        opt.ignoreError,
+                        opt.resolveRealPath,
+                        false,
+                    });
+        } else {
+            spdlog::warn("No fallback mount confilgure found");
+            throw;
+        }
+    } catch (...) {
+        spdlog::warn("Fallback mount failed");
+        throw;
+    }
+}
+
 void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const std::filesystem::path &rootpath,
              const doMountOption &opt)
 {
@@ -258,14 +309,14 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
 
         std::unique_ptr<util::FD> source;
         if (m.source.has_value()) {
-            char *buffer = nullptr;
+            std::unique_ptr<char[]> buffer = nullptr;
             const char *real = nullptr;
             if (opt.resolveRealPath) {
-                buffer = (char *)malloc(PATH_MAX);
+                buffer.reset(new char[PATH_MAX]);
                 if (!buffer) {
                     spdlog::warn("Failed to malloc memory for realpath: {}", strerror(errno));
                 } else {
-                    real = realpath(m.source->c_str(), buffer);
+                    real = realpath(m.source->c_str(), buffer.get());
                     if (real == nullptr) {
                         spdlog::warn("Failed to get realpath of mount source \"{}\": {}", m.source.value(),
                                      strerror(errno));
@@ -273,22 +324,6 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
                 }
             }
             source.reset(new util::FD(open(real ? real : m.source->c_str(), O_PATH | O_CLOEXEC)));
-            free(buffer);
-        }
-
-        if (opt.fallback && m.type.has_value()) {
-            switch (m.type.value()) {
-            case OCI::Config::Mount::Type::Bind:
-            case OCI::Config::Mount::Type::Cgroup:
-            case OCI::Config::Mount::Type::Cgroup2:
-            case OCI::Config::Mount::Type::Devpts:
-            case OCI::Config::Mount::Type::Mqueue:
-            case OCI::Config::Mount::Type::Proc:
-            case OCI::Config::Mount::Type::Sysfs:
-            case OCI::Config::Mount::Type::Tmpfs:
-            default:
-                throw;
-            }
         }
 
         std::string sourcePath = source ? fmt::format("/proc/self/fd/{}", source->fd) : "";
@@ -312,41 +347,7 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
                 std::stringstream buffer;
                 util::printException(buffer, e);
                 spdlog::warn("mount [{}] failed: {}, try fallback now", m, buffer);
-                try {
-                    if (m.type == OCI::Config::Mount::Type::Sysfs) {
-                        OCI::Config::Mount fallbackMount(nlohmann::json({
-                            {"source", "/sys"},
-                            {"destination", "/sys"},
-                            {"type", "bind"},
-                            {"option", "rbind,ro"},
-                        })); // should not contain any relative path
-                        fallbackMount.parse("/");
-                        doMount(fallbackMount, root, rootpath,
-                                {
-                                    opt.ignoreError,
-                                    opt.resolveRealPath,
-                                    false,
-                                });
-                    } else if (m.type == OCI::Config::Mount::Type::Mqueue) {
-                        OCI::Config::Mount fallbackMount(nlohmann::json({
-                            {"source", "/dev/mqueue"},
-                            {"destination", "/dev/mqueue"},
-                            {"type", "bind"},
-                            {"option", "rbind"},
-                        })); // should not contain any relative path
-                        fallbackMount.parse("/");
-                        doMount(fallbackMount, root, rootpath,
-                                {
-                                    opt.ignoreError,
-                                    opt.resolveRealPath,
-                                    false,
-                                });
-                    } else {
-                        throw;
-                    }
-                } catch (...) {
-                    throw;
-                }
+                doFallbackMount(m, root, rootpath, opt);
             } else {
                 throw;
             }
@@ -406,9 +407,9 @@ void ContainerRef::Start()
     socket >> msg;
     if (msg.raw.get<int>()) {
         throw std::runtime_error("start container failed");
-    } else {
-        this->state.status = "running";
-        this->terminalFD = msg.fds.empty() ? -1 : std::move(msg.fds.front());
     }
+
+    this->state.status = "running";
+    this->terminalFD = msg.fds.empty() ? -1 : std::move(msg.fds.front());
 }
 } // namespace linglong

@@ -2,11 +2,6 @@
 
 using linglong::OCI::Config;
 
-const Config::MountPropagation Config::Share = "share";
-const Config::MountPropagation Config::Slave = "slave";
-const Config::MountPropagation Config::Unbindable = "unbindable";
-const Config::MountPropagation Config::Private = "private";
-
 #ifdef RLIMIT_AS
 const Config::Process::Rlimit::Type Config::Process::Rlimit::AS = "RLIMIT_AS";
 #endif

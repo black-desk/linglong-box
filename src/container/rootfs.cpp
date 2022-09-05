@@ -31,7 +31,7 @@ void Container::Rootfs::run()
         int ret = -1;
         ret = unshare(this->unshareFlag);
         if (ret != 0) {
-            throw util::RuntimeError("Failed to unshare user and mount namespace");
+            throw std::runtime_error("Failed to unshare user and mount namespace");
         }
 
         container->monitor->sync << 0; // request monitor to write ID mapping
@@ -41,7 +41,7 @@ void Container::Rootfs::run()
         this->sync >> msg;
         spdlog::debug("rootfs: done");
         if (msg == -1) {
-            throw util::RuntimeError("Error during waiting monitor to write ID mapping");
+            throw std::runtime_error("Error during waiting monitor to write ID mapping");
         }
 
         this->prepareRootfs();
@@ -52,7 +52,7 @@ void Container::Rootfs::run()
         this->sync >> msg;
         spdlog::debug("rootfs: done");
         if (msg == -1) {
-            throw util::RuntimeError("Error during waiting init to request write ID mapping");
+            throw std::runtime_error("Error during waiting init to request write ID mapping");
         }
 
         configIDMapping(container->init->pid, container->config->uidMappings, container->config->gidMappings);
@@ -63,14 +63,14 @@ void Container::Rootfs::run()
         this->sync >> msg;
         spdlog::debug("rootfs: done");
         if (msg == -1) {
-            throw util::RuntimeError("Error during waiting init to report \"create\" result");
+            throw std::runtime_error("Error during waiting init to report \"create\" result");
         }
 
         this->container->sync << this->container->init->pid;
 
         this->clear();
         exit(-1);
-    } catch (const util::RuntimeError &e) {
+    } catch (const std::runtime_error &e) {
         std::stringstream s;
         util::printException(s, e);
         spdlog::error("rootfs: Unhanded exception during rootfs preparer running: {}", s);
@@ -145,7 +145,8 @@ void Container::Rootfs::prepareRootfs()
 
     if (config->annotations->rootfs.has_value() && config->annotations->rootfs->native.has_value()) {
         for (const auto &mount : config->annotations->rootfs->native->mounts) {
-            doMount(mount, *this->container->containerRoot);
+            doMount(mount, *this->container->containerRoot, this->container->config->root.path,
+                    {this->container->option.IgnoreMountFail, true, true});
         }
     }
 }
