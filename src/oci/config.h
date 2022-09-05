@@ -601,12 +601,7 @@ struct Config {
         std::optional<std::vector<Syscall>> syscalls;
     };
 
-    typedef std::string MountPropagation;
-
-    static const MountPropagation Share;
-    static const MountPropagation Slave;
-    static const MountPropagation Private;
-    static const MountPropagation Unbindable;
+    enum MountPropagation { Share, Slave, Private, Unbindable };
 
     struct Personality {
         enum Domain {
@@ -652,6 +647,16 @@ struct Config {
 #define JSON_DISABLE_ENUM_SERIALIZATION 1
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Root, path, readonly);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::IDMapping, containerID, hostID, size);
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Mount::Type, {
+                                                      {Config::Mount::Type::Bind, "bind"},
+                                                      {Config::Mount::Type::Proc, "proc"},
+                                                      {Config::Mount::Type::Sysfs, "sysfs"},
+                                                      {Config::Mount::Type::Devpts, "devpts"},
+                                                      {Config::Mount::Type::Mqueue, "mqueue"},
+                                                      {Config::Mount::Type::Tmpfs, "tmpfs"},
+                                                      {Config::Mount::Type::Cgroup, "cgroup"},
+                                                      {Config::Mount::Type::Cgroup2, "cgroup2"},
+                                                  });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Mount, type, uidMappings, gidMappings, destination, source,
                                                 options);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Process::Rlimit, type, soft, hard);
@@ -847,6 +852,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Mount::Type, {
                                                       {Config::Mount::Type::Sysfs, "sysfs"},
                                                       {Config::Mount::Type::Tmpfs, "tmpfs"},
                                                   });
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::MountPropagation, {
+                                                           {Config::MountPropagation::Private, "private"},
+                                                           {Config::MountPropagation::Share, "share"},
+                                                           {Config::MountPropagation::Slave, "slare"},
+                                                           {Config::MountPropagation::Unbindable, "unbindable"},
+                                                       });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config, ociVersion, root, mounts, process, hostname, hooks, annotations,
                                                 namespaces, uidMappings, gidMappings, devices, cgroupsPath, resources,
                                                 unified, sysctl, seccomp, rootfsPropagation, maskedPaths, readonlyPaths,

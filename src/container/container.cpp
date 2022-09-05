@@ -276,6 +276,21 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
             free(buffer);
         }
 
+        if (opt.fallback && m.type.has_value()) {
+            switch (m.type.value()) {
+            case OCI::Config::Mount::Type::Bind:
+            case OCI::Config::Mount::Type::Cgroup:
+            case OCI::Config::Mount::Type::Cgroup2:
+            case OCI::Config::Mount::Type::Devpts:
+            case OCI::Config::Mount::Type::Mqueue:
+            case OCI::Config::Mount::Type::Proc:
+            case OCI::Config::Mount::Type::Sysfs:
+            case OCI::Config::Mount::Type::Tmpfs:
+            default:
+                throw;
+            }
+        }
+
         std::string sourcePath = source ? fmt::format("/proc/self/fd/{}", source->fd) : "";
         std::string destinationPath = fmt::format("/proc/self/fd/{}", destination->fd);
 
@@ -352,7 +367,7 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
         if (opt.ignoreError) {
             std::stringstream buffer;
             util::printException(buffer, e);
-            spdlog::warn("Failed to preform mount [{}]: {}", m, buffer);
+            spdlog::error("Failed to preform mount [{}]: {}", m, buffer);
         } else {
             std::throw_with_nested(fmt::format("Failed to preform mount [{}]", m));
         }
