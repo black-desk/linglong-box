@@ -184,7 +184,7 @@ int Runtime::Exec(const std::string &containerID, const std::vector<std::string>
 inline void epoll_ctl_add(int epfd, int fd)
 {
     static epoll_event ev = {};
-    ev.events = EPOLLIN;
+    ev.events = EPOLLIN | EPOLLET;
     ev.data.fd = fd;
     int ret = epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
     if (ret != 0) {
