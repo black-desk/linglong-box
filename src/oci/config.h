@@ -68,56 +68,56 @@ struct Config {
         };
 
         struct Rlimit {
-            typedef std::string Type;
-
+            enum Type {
 #ifdef RLIMIT_AS
-            static const Type AS;
+                AS,
 #endif
 #ifdef RLIMIT_CORE
-            static const Type Core;
+                Core,
 #endif
 #ifdef RLIMIT_CPU
-            static const Type CPU;
+                CPU,
 #endif
 #ifdef RLIMIT_DATA
-            static const Type Data;
+                Data,
 #endif
 #ifdef RLIMIT_FSIZE
-            static const Type FSize;
+                FSize,
 #endif
 #ifdef RLIMIT_LOCKS
-            static const Type Locks;
+                Locks,
 #endif
 #ifdef RLIMIT_MEMLOCK
-            static const Type MemLock;
+                MemLock,
 #endif
 #ifdef RLIMIT_MSGQUEUE
-            static const Type MsgQueue;
+                MsgQueue,
 #endif
 #ifdef RLIMIT_NICE
-            static const Type Nice;
+                Nice,
 #endif
 #ifdef RLIMIT_NOFILE
-            static const Type NOFile;
+                NOFile,
 #endif
 #ifdef RLIMIT_NPROC
-            static const Type NProc;
+                NProc,
 #endif
 #ifdef RLIMIT_RSS
-            static const Type RSS;
+                RSS,
 #endif
 #ifdef RLIMIT_RTPRIO
-            static const Type RTPrio;
+                RTPrio,
 #endif
 #ifdef RLIMIT_RTTIME
-            static const Type RTTime;
+                RTTime,
 #endif
 #ifdef RLIMIT_SIGPENDING
-            static const Type SigPending;
+                SigPending,
 #endif
 #ifdef RLIMIT_STACK
-            static const Type Stack;
+                Stack,
 #endif
+            };
 
             Type type;
             uint64_t soft;
@@ -125,131 +125,131 @@ struct Config {
         };
 
         struct Capabilities {
-            typedef std::string Capability;
-
+            enum Capability {
 #ifdef CAP_AUDIT_CONTROL
-            static const Capability AUDIT_CONTROL;
+                AUDIT_CONTROL,
 #endif
 #ifdef CAP_AUDIT_READ
-            static const Capability AUDIT_READ;
+                AUDIT_READ,
 #endif
 #ifdef CAP_AUDIT_WRITE
-            static const Capability AUDIT_WRITE;
+                AUDIT_WRITE,
 #endif
 #ifdef CAP_BLOCK_SUSPEND
-            static const Capability BLOCK_SUSPEND;
+                BLOCK_SUSPEND,
 #endif
 #ifdef CAP_BPF
-            static const Capability BPF;
+                BPF,
 #endif
 #ifdef CAP_CHECKPOINT_RESTORE
-            static const Capability CHECKPOINT_RESTORE;
+                CHECKPOINT_RESTORE,
 #endif
 #ifdef CAP_CHOWN
-            static const Capability CHOWN;
+                CHOWN,
 #endif
 #ifdef CAP_DAC_OVERRIDE
-            static const Capability DAC_OVERRIDE;
+                DAC_OVERRIDE,
 #endif
 #ifdef CAP_DAC_READ_SEARCH
-            static const Capability DAC_READ_SEARCH;
+                DAC_READ_SEARCH,
 #endif
 #ifdef CAP_FOWNER
-            static const Capability FOWNER;
+                FOWNER,
 #endif
 #ifdef CAP_FSETID
-            static const Capability FSETID;
+                FSETID,
 #endif
 #ifdef CAP_IPC_LOCK
-            static const Capability IPC_LOCK;
+                IPC_LOCK,
 #endif
 #ifdef CAP_IPC_OWNER
-            static const Capability IPC_OWNER;
+                IPC_OWNER,
 #endif
 #ifdef CAP_KILL
-            static const Capability KILL;
+                KILL,
 #endif
 #ifdef CAP_LEASE
-            static const Capability LEASE;
+                LEASE,
 #endif
 #ifdef CAP_LINUX_IMMUTABLE
-            static const Capability LINUX_IMMUTABLE;
+                LINUX_IMMUTABLE,
 #endif
 #ifdef CAP_MAC_ADMIN
-            static const Capability MAC_ADMIN;
+                MAC_ADMIN,
 #endif
 #ifdef CAP_MAC_OVERRIDE
-            static const Capability MAC_OVERRIDE;
+                MAC_OVERRIDE,
 #endif
 #ifdef CAP_MKNOD
-            static const Capability MKNOD;
+                MKNOD,
 #endif
 #ifdef CAP_NET_ADMIN
-            static const Capability NET_ADMIN;
+                NET_ADMIN,
 #endif
 #ifdef CAP_NET_BIND_SERVICE
-            static const Capability NET_BIND_SERVICE;
+                NET_BIND_SERVICE,
 #endif
 #ifdef CAP_NET_BROADCAST
-            static const Capability NET_BROADCAST;
+                NET_BROADCAST,
 #endif
 #ifdef CAP_NET_RAW
-            static const Capability NET_RAW;
+                NET_RAW,
 #endif
 #ifdef CAP_PERFMON
-            static const Capability PERFMON;
+                PERFMON,
 #endif
 #ifdef CAP_SETGID
-            static const Capability SETGID;
+                SETGID,
 #endif
 #ifdef CAP_SETFCAP
-            static const Capability SETFCAP;
+                SETFCAP,
 #endif
 #ifdef CAP_SETPCAP
-            static const Capability SETPCAP;
+                SETPCAP,
 #endif
 #ifdef CAP_SETUID
-            static const Capability SETUID;
+                SETUID,
 #endif
 #ifdef CAP_SYS_ADMIN
-            static const Capability SYS_ADMIN;
+                SYS_ADMIN,
 #endif
 #ifdef CAP_SYS_BOOT
-            static const Capability SYS_BOOT;
+                SYS_BOOT,
 #endif
 #ifdef CAP_SYS_CHROOT
-            static const Capability SYS_CHROOT;
+                SYS_CHROOT,
 #endif
 #ifdef CAP_SYS_MODULE
-            static const Capability SYS_MODULE;
+                SYS_MODULE,
 #endif
 #ifdef CAP_SYS_NICE
-            static const Capability SYS_NICE;
+                SYS_NICE,
 #endif
 #ifdef CAP_SYS_PACCT
-            static const Capability SYS_PACCT;
+                SYS_PACCT,
 #endif
 #ifdef CAP_SYS_PTRACE
-            static const Capability SYS_PTRACE;
+                SYS_PTRACE,
 #endif
 #ifdef CAP_SYS_RAWIO
-            static const Capability SYS_RAWIO;
+                SYS_RAWIO,
 #endif
 #ifdef CAP_SYS_RESOURCE
-            static const Capability SYS_RESOURCE;
+                SYS_RESOURCE,
 #endif
 #ifdef CAP_SYS_TIME
-            static const Capability SYS_TIME;
+                SYS_TIME,
 #endif
 #ifdef CAP_SYS_TTY_CONFIG
-            static const Capability SYS_TTY_CONFIG;
+                SYS_TTY_CONFIG,
 #endif
 #ifdef CAP_SYSLOG
-            static const Capability SYSLOG;
+                SYSLOG,
 #endif
 #ifdef CAP_WAKE_ALARM
-            static const Capability WAKE_ALARM;
+                WAKE_ALARM,
 #endif
+            };
 
             std::optional<std::vector<Capability>> effective;
             std::optional<std::vector<Capability>> bounding;
@@ -659,7 +659,186 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Mount::Type, {
                                                   });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Mount, type, uidMappings, gidMappings, destination, source,
                                                 options);
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Process::Rlimit::Type,
+                             {
+#ifdef RLIMIT_AS
+                                 {Config::Process::Rlimit::Type::AS, "RLIMIT_AS"},
+#endif
+#ifdef RLIMIT_CORE
+                                 {Config::Process::Rlimit::Type::Core, "RLIMIT_CORE"},
+#endif
+#ifdef RLIMIT_CPU
+                                 {Config::Process::Rlimit::Type::CPU, "RLIMIT_CPU"},
+#endif
+#ifdef RLIMIT_DATA
+                                 {Config::Process::Rlimit::Type::Data, "RLIMIT_DATA"},
+#endif
+#ifdef RLIMIT_FSIZE
+                                 {Config::Process::Rlimit::Type::FSize, "RLIMIT_FSIZE"},
+#endif
+#ifdef RLIMIT_LOCKS
+                                 {Config::Process::Rlimit::Type::Locks, "RLIMIT_LOCKS"},
+#endif
+#ifdef RLIMIT_MEMLOCK
+                                 {Config::Process::Rlimit::Type::MemLock, "RLIMIT_MEMLOCK"},
+#endif
+#ifdef RLIMIT_MSGQUEUE
+                                 {Config::Process::Rlimit::Type::MsgQueue, "RLIMIT_MSGQUEUE"},
+#endif
+#ifdef RLIMIT_NICE
+                                 {Config::Process::Rlimit::Type::Nice, "RLIMIT_NICE"},
+#endif
+#ifdef RLIMIT_NOFILE
+                                 {Config::Process::Rlimit::Type::NOFile, "RLIMIT_NOFILE"},
+#endif
+#ifdef RLIMIT_NPROC
+                                 {Config::Process::Rlimit::Type::NProc, "RLIMIT_NPROC"},
+#endif
+#ifdef RLIMIT_RSS
+                                 {Config::Process::Rlimit::Type::RSS, "RLIMIT_RSS"},
+#endif
+#ifdef RLIMIT_RTPRIO
+                                 {Config::Process::Rlimit::Type::RTPrio, "RLIMIT_RTPRIO"},
+#endif
+#ifdef RLIMIT_RTTIME
+                                 {Config::Process::Rlimit::Type::RTTime, "RLIMIT_RTTIME"},
+#endif
+#ifdef RLIMIT_SIGPENDING
+                                 {Config::Process::Rlimit::Type::SigPending, "RLIMIT_SIGPENDING"},
+#endif
+#ifdef RLIMIT_STACK
+                                 {Config::Process::Rlimit::Type::Stack, "RLIMIT_STACK"},
+#endif
+                             });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Process::Rlimit, type, soft, hard);
+NLOHMANN_JSON_SERIALIZE_ENUM(Config::Process::Capabilities::Capability,
+                             {
+#ifdef CAP_AUDIT_CONTROL
+                                 {Config::Process::Capabilities::Capability::AUDIT_CONTROL, "CAP_AUDIT_CONTROL"},
+#endif
+#ifdef CAP_AUDIT_READ
+                                 {Config::Process::Capabilities::Capability::AUDIT_READ, "CAP_AUDIT_READ"},
+#endif
+#ifdef CAP_AUDIT_WRITE
+                                 {Config::Process::Capabilities::Capability::AUDIT_WRITE, "CAP_AUDIT_WRITE"},
+#endif
+#ifdef CAP_BLOCK_SUSPEND
+                                 {Config::Process::Capabilities::Capability::BLOCK_SUSPEND, "CAP_BLOCK_SUSPEND"},
+#endif
+#ifdef CAP_BPF
+                                 {Config::Process::Capabilities::Capability::BPF, "CAP_BPF"},
+#endif
+                                 {Config::Process::Capabilities::Capability::CHECKPOINT_RESTORE,
+#ifdef CAP_CHECKPOINT_RESTORE
+                                  "CAP_CHECKPOINT_RESTORE"},
+#endif
+#ifdef CAP_CHOWN
+                                 {Config::Process::Capabilities::Capability::CHOWN, "CAP_CHOWN"},
+#endif
+#ifdef CAP_DAC_OVERRIDE
+                                 {Config::Process::Capabilities::Capability::DAC_OVERRIDE, "CAP_DAC_OVERRIDE"},
+#endif
+#ifdef CAP_DAC_READ_SEARCH
+                                 {Config::Process::Capabilities::Capability::DAC_READ_SEARCH, "CAP_DAC_READ_SEARCH"},
+#endif
+#ifdef CAP_FOWNER
+                                 {Config::Process::Capabilities::Capability::FOWNER, "CAP_FOWNER"},
+#endif
+#ifdef CAP_FSETID
+                                 {Config::Process::Capabilities::Capability::FSETID, "CAP_FSETID"},
+#endif
+#ifdef CAP_IPC_LOCK
+                                 {Config::Process::Capabilities::Capability::IPC_LOCK, "CAP_IPC_LOCK"},
+#endif
+#ifdef CAP_IPC_OWNER
+                                 {Config::Process::Capabilities::Capability::IPC_OWNER, "CAP_IPC_OWNER"},
+#endif
+#ifdef CAP_KILL
+                                 {Config::Process::Capabilities::Capability::KILL, "CAP_KILL"},
+#endif
+#ifdef CAP_LEASE
+                                 {Config::Process::Capabilities::Capability::LEASE, "CAP_LEASE"},
+#endif
+#ifdef CAP_LINUX_IMMUTABLE
+                                 {Config::Process::Capabilities::Capability::LINUX_IMMUTABLE, "CAP_LINUX_IMMUTABLE"},
+#endif
+#ifdef CAP_MAC_ADMIN
+                                 {Config::Process::Capabilities::Capability::MAC_ADMIN, "CAP_MAC_ADMIN"},
+#endif
+#ifdef CAP_MAC_OVERRIDE
+                                 {Config::Process::Capabilities::Capability::MAC_OVERRIDE, "CAP_MAC_OVERRIDE"},
+#endif
+#ifdef CAP_MKNOD
+                                 {Config::Process::Capabilities::Capability::MKNOD, "CAP_MKNOD"},
+#endif
+#ifdef CAP_NET_ADMIN
+                                 {Config::Process::Capabilities::Capability::NET_ADMIN, "CAP_NET_ADMIN"},
+#endif
+#ifdef CAP_NET_BIND_SERVICE
+                                 {Config::Process::Capabilities::Capability::NET_BIND_SERVICE, "CAP_NET_BIND_SERVICE"},
+#endif
+#ifdef CAP_NET_BROADCAST
+                                 {Config::Process::Capabilities::Capability::NET_BROADCAST, "CAP_NET_BROADCAST"},
+#endif
+#ifdef CAP_NET_RAW
+                                 {Config::Process::Capabilities::Capability::NET_RAW, "CAP_NET_RAW"},
+#endif
+#ifdef CAP_PERFMON
+                                 {Config::Process::Capabilities::Capability::PERFMON, "CAP_PERFMON"},
+#endif
+#ifdef CAP_SETGID
+                                 {Config::Process::Capabilities::Capability::SETGID, "CAP_SETGID"},
+#endif
+#ifdef CAP_SETFCAP
+                                 {Config::Process::Capabilities::Capability::SETFCAP, "CAP_SETFCAP"},
+#endif
+#ifdef CAP_SETPCAP
+                                 {Config::Process::Capabilities::Capability::SETPCAP, "CAP_SETPCAP"},
+#endif
+#ifdef CAP_SETUID
+                                 {Config::Process::Capabilities::Capability::SETUID, "CAP_SETUID"},
+#endif
+#ifdef CAP_SYS_ADMIN
+                                 {Config::Process::Capabilities::Capability::SYS_ADMIN, "CAP_SYS_ADMIN"},
+#endif
+#ifdef CAP_SYS_BOOT
+                                 {Config::Process::Capabilities::Capability::SYS_BOOT, "CAP_SYS_BOOT"},
+#endif
+#ifdef CAP_SYS_CHROOT
+                                 {Config::Process::Capabilities::Capability::SYS_CHROOT, "CAP_SYS_CHROOT"},
+#endif
+#ifdef CAP_SYS_MODULE
+                                 {Config::Process::Capabilities::Capability::SYS_MODULE, "CAP_SYS_MODULE"},
+#endif
+#ifdef CAP_SYS_NICE
+                                 {Config::Process::Capabilities::Capability::SYS_NICE, "CAP_SYS_NICE"},
+#endif
+#ifdef CAP_SYS_PACCT
+                                 {Config::Process::Capabilities::Capability::SYS_PACCT, "CAP_SYS_PACCT"},
+#endif
+#ifdef CAP_SYS_PTRACE
+                                 {Config::Process::Capabilities::Capability::SYS_PTRACE, "CAP_SYS_PTRACE"},
+#endif
+#ifdef CAP_SYS_RAWIO
+                                 {Config::Process::Capabilities::Capability::SYS_RAWIO, "CAP_SYS_RAWIO"},
+#endif
+#ifdef CAP_SYS_RESOURCE
+                                 {Config::Process::Capabilities::Capability::SYS_RESOURCE, "CAP_SYS_RESOURCE"},
+#endif
+#ifdef CAP_SYS_TIME
+                                 {Config::Process::Capabilities::Capability::SYS_TIME, "CAP_SYS_TIME"},
+#endif
+#ifdef CAP_SYS_TTY_CONFIG
+                                 {Config::Process::Capabilities::Capability::SYS_TTY_CONFIG, "CAP_SYS_TTY_CONFIG"},
+#endif
+#ifdef CAP_SYSLOG
+                                 {Config::Process::Capabilities::Capability::SYSLOG, "CAP_SYSLOG"},
+#endif
+#ifdef CAP_WAKE_ALARM
+                                 {Config::Process::Capabilities::Capability::WAKE_ALARM, "CAP_WAKE_ALARM"},
+#endif
+                             });
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Process::Capabilities, effective, bounding, inheritable,
                                                 permitted, ambient);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Process::ConsoleSize, height, width);
