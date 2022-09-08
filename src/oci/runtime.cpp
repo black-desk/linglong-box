@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/epoll.h>
 #include <unistd.h>
 
 #include <fmt/format.h>
@@ -15,6 +14,7 @@
 #include "runtime.h"
 #include "util/filesystem.h"
 #include "util/lock.h"
+#include "util/epoll.h"
 
 namespace linglong {
 namespace OCI {
@@ -181,17 +181,6 @@ int Runtime::Exec(const std::string &containerID, const std::vector<std::string>
     // FIXME: TODO
 }
 
-inline void epoll_ctl_add(int epfd, int fd)
-{
-    static epoll_event ev = {};
-    ev.events = EPOLLIN | EPOLLET;
-    ev.data.fd = fd;
-    int ret = epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
-    if (ret != 0) {
-        throw std::runtime_error(fmt::format("Failed to fd={} to epoll: {}", fd, strerror(errno)));
-    }
-}
-
 static void copy(int in, int out)
 {
     while (true) {
@@ -207,24 +196,11 @@ static void copy(int in, int out)
 
 void Runtime::proxy(int in, int out, int notify, int target)
 {
-    auto epfd = util::FD(epoll_create(1));
-    epoll_ctl_add(epfd.fd, in);
-    epoll_ctl_add(epfd.fd, target);
-    epoll_ctl_add(epfd.fd, notify);
-    for (;;) {
-        struct epoll_event events[10];
-        int event_cnt = epoll_wait(epfd.fd, events, 5, -1);
-        for (int i = 0; i < event_cnt; i++) {
-            const auto &event = events[i];
-            if (event.data.fd == in) {
-                copy(in, target);
-            } else if (event.data.fd == target) {
-                copy(target, out);
-            } else {
-                break;
-            }
-        }
-    }
+    Epoll epoll;
+    epoll.add(in, [in, target](Epoll &epoll, const epoll_event &event) { copy(in, target); });
+    epoll.add(target, [out, target](Epoll &epoll, const epoll_event &event) { copy(target, out); });
+    epoll.add(notify, [](Epoll &epoll, const epoll_event &event) { epoll.end(); });
+    epoll.run();
 }
 
 } // namespace OCI
