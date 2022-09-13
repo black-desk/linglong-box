@@ -10,7 +10,6 @@
 #include "oci/config.h"
 #include "oci/runtime.h"
 #include "util/fd.h"
-#include "util/sync.h"
 
 namespace linglong {
 
@@ -89,7 +88,7 @@ public:
         Container *const container;
         util::Pipe sync;
         int socket;
-        std::unique_ptr<util::FD> terminalFD;
+        std::shared_ptr<util::FD> terminalFD;
         std::map<pid_t, util::Pipe> map;
 
         void init(pid_t ppid) noexcept;
@@ -107,7 +106,7 @@ public:
         void waitStart();
         pid_t execProcess(const OCI::Config::Process &p);
 
-        void exec(util::Pipe sync,pid_t pid);
+        void exec(util::Socket& sync, pid_t pid);
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
@@ -132,12 +131,12 @@ struct ContainerRef {
     ContainerRef(const std::filesystem::path &workingPath);
     void Start();
 
-    util::FD connect();
+    int connect();
 
     std::filesystem::path workingPath;
     struct OCI::Runtime::State state;
-    util::Pipe socket;
-    util::FD terminalFD;
+    util::Socket socket;
+    std::shared_ptr<util::FD> terminalFD;
 };
 
 } // namespace linglong

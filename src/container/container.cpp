@@ -17,7 +17,6 @@
 #include "nlohmann/json.hpp"
 #include "util/exception.h"
 #include "util/filesystem.h"
-#include "util/sync.h"
 #include "util/wait.h"
 
 namespace linglong {
@@ -424,13 +423,13 @@ void ContainerRef::Start()
 {
     util::Message msg({{"command", "start"}, {}});
     socket << msg;
-
     socket >> msg;
+
     if (msg.raw.get<int>()) {
         throw std::runtime_error("start container failed");
     }
 
     this->state.status = "running";
-    this->terminalFD = msg.fds.empty() ? -1 : std::move(msg.fds.front());
+    this->terminalFD = msg.fds.empty() ? nullptr : msg.fds.front();
 }
 } // namespace linglong

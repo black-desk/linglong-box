@@ -1,3 +1,4 @@
+#include "oci/util.h"
 #include <unistd.h>
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
@@ -15,7 +16,6 @@
 
 #include "container.h"
 #include "util/exception.h"
-#include "util/sync.h"
 #include "util/fd.h"
 
 static const uint PTSNAME_LEN = 64;
@@ -364,7 +364,7 @@ void Container::Init::waitStart()
     int startRequestFD = accept(this->socket, nullptr, nullptr);
     spdlog::debug("init: done");
 
-    util::Pipe conn((util::FD(startRequestFD)));
+    util::Socket conn(startRequestFD);
 
     util::Message startRequest;
     conn >> startRequest;
@@ -394,7 +394,7 @@ void Container::Init::waitStart()
 
         util::Message startResponse({
             msg,
-            {this->terminalFD->fd},
+            std::vector<std::shared_ptr<util::FD>>({this->terminalFD}),
         });
 
         conn << startResponse;
@@ -412,46 +412,10 @@ void Container::Init::waitStart()
 
 pid_t Container::Init::execProcess(const OCI::Config::Process &process)
 {
-    util::Pipe sync;
-    int appPID = fork();
-    if (appPID) { // parent
-        sync << 0;
-        int ret;
-        sync >> ret;
-        if (ret) {
-            throw std::runtime_error(
-                fmt::format("execve \"{}\" failed: {}", nlohmann::json(process).dump(), strerror(errno)));
-        }
-        return appPID;
-    } else {
-        int ret;
-        sync >> ret;
-        int fdlimit = (int)sysconf(_SC_OPEN_MAX);
-        for (int i = STDERR_FILENO + 1; i < fdlimit; i++)
-            close(i);
-
-        const auto &processArgs = process.args;
-        const auto &processEnv = process.env.value_or(std::vector<std::string>());
-        const char *args[processArgs.size() + 1];
-        const char *env[processEnv.size() + 1];
-
-        for (int i = 0; i < processArgs.size(); i++) {
-            args[i] = processArgs[i].c_str();
-        }
-        args[processArgs.size()] = nullptr;
-
-        for (int i = 0; i < processEnv.size(); i++) {
-            env[i] = processEnv[i].c_str();
-        }
-        env[processEnv.size()] = nullptr;
-
-        ret = execve(args[0], const_cast<char *const *>(args), const_cast<char *const *>(env));
-        sync << errno;
-        exit(-1);
-    }
+    return linglong::OCI::execProcess(process);
 }
 
-void Container::Init::exec(util::Pipe p, pid_t pid)
+void Container::Init::exec(util::Socket& p, pid_t pid)
 {
     int fdlimit = (int)sysconf(_SC_OPEN_MAX);
     for (int i = STDERR_FILENO + 1; i < fdlimit; i++) {

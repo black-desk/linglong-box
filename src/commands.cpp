@@ -8,6 +8,8 @@
 
 #include "commands.h"
 
+namespace linglong {
+
 static void doShowHelpInfomation(bool) noexcept;
 
 void showHelpInfomation(int argc, char **argv)
@@ -226,3 +228,4 @@ void exec(int argc, char **argv)
         std::throw_with_nested(std::runtime_error("command exec failed"));
     }
 }
+} // namespace linglong

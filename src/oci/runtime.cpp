@@ -146,7 +146,7 @@ void Runtime::Start(const std::string &containerID, const bool interactive)
 
         if (interactive) {
             // TODO: check stdin/stdout is a tty
-            proxy(0, 1, c->socket.fd, c->terminalFD.fd);
+            proxy(0, 1, c->socket.fd, c->terminalFD->fd);
         }
 
     } catch (...) {
@@ -196,10 +196,10 @@ static void copy(int in, int out)
 
 void Runtime::proxy(int in, int out, int notify, int target)
 {
-    Epoll epoll;
-    epoll.add(in, [in, target](Epoll &epoll, const epoll_event &event) { copy(in, target); });
-    epoll.add(target, [out, target](Epoll &epoll, const epoll_event &event) { copy(target, out); });
-    epoll.add(notify, [](Epoll &epoll, const epoll_event &event) { epoll.end(); });
+    util::Epoll epoll;
+    epoll.add(in, [in, target](util::Epoll &epoll, const epoll_event &event) { copy(in, target); });
+    epoll.add(target, [out, target](util::Epoll &epoll, const epoll_event &event) { copy(target, out); });
+    epoll.add(notify, [](util::Epoll &epoll, const epoll_event &event) { epoll.end(); });
     epoll.run();
 }
 

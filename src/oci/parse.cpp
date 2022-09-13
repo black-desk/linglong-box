@@ -45,7 +45,7 @@ void Config::parse(const std::filesystem::path &bundlePath)
     {
         if (this->process.has_value()) {
             auto &process = this->process.value();
-            process.parse(bundlePath);
+            process.parse();
         } else {
             spdlog::warn("config.json doesn't have \"process\", this container cannot be started.");
         }
@@ -327,7 +327,7 @@ void linglong::OCI::Config::Mount::parse(std::filesystem::path bundlePath)
     }
 }
 
-void Config::Process::parse(const std::filesystem::path &bundlePath)
+void Config::Process::parse()
 {
     this->terminal = this->terminal.value_or(false);
 

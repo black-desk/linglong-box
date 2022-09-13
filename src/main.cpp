@@ -29,26 +29,26 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    auto cmd = showHelpInfomationError;
+    auto cmd = linglong::showHelpInfomationError;
 
     if (argc >= 2) {
         std::string command = argv[1];
         if (command == "create") {
-            cmd = create;
+            cmd = linglong::create;
         } else if (command == "start") {
-            cmd = start;
+            cmd = linglong::start;
         } else if (command == "kill") {
-            cmd = kill;
+            cmd = linglong::kill;
         } else if (command == "delete") {
-            cmd = delete_;
+            cmd = linglong::delete_;
         } else if (command == "list") {
-            cmd = list;
+            cmd = linglong::list;
         } else if (command == "state") {
-            cmd = state;
+            cmd = linglong::state;
         } else if (command == "exec") {
-            cmd = exec;
+            cmd = linglong::exec;
         } else if (command == "--help") {
-            cmd = showHelpInfomation;
+            cmd = linglong::showHelpInfomation;
         }
     }
 
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
         std::stringstream buf;
         linglong::util::printException(buf, e);
         spdlog::error("ll-box: command execution failed: {}", buf);
-        showHelpInfomationError(0, nullptr);
+        linglong::showHelpInfomationError(0, nullptr);
     }
 
     return 0;

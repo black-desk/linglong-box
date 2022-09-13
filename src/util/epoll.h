@@ -7,7 +7,9 @@
 #include <fmt/format.h>
 
 #include "util/common.h"
-#include "util/sync.h"
+#include "util/fd.h"
+
+namespace linglong::util {
 
 inline void epoll_ctl_add(int epfd, int fd)
 {
@@ -24,10 +26,12 @@ class Epoll : public NonCopyable
 {
 public:
     Epoll();
-    void add(std::unique_ptr<linglong::util::FD> fd, std::function<void(Epoll &epoll, const epoll_event &event)>);
+    void add(int fd, std::function<void(Epoll &epoll, const epoll_event &event)>);
     void remove(int fd);
     void end();
     void run();
 };
+
+} // namespace linglong::util
 
 #endif

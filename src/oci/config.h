@@ -282,7 +282,7 @@ struct Config {
 
         User user;
 
-        void parse(const std::filesystem::path &bundlePath);
+        void parse();
     };
 
     // POSIX https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md#posix-platform-hooks
