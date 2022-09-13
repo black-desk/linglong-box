@@ -4,7 +4,7 @@
 
 #include "container.h"
 #include "util/exception.h"
-#include "util/sync.h"
+#include "util/fd.h"
 namespace linglong {
 
 Container::Monitor::Monitor(Container *const container)
@@ -127,6 +127,20 @@ void Container::Monitor::init(pid_t ppid) noexcept
 
 void Container::Monitor::exec()
 {
-    // TODO:
+    int fdlimit = (int)sysconf(_SC_OPEN_MAX);
+    for (int i = STDERR_FILENO + 1; i < fdlimit; i++) {
+        close(i);
+    }
+
+    auto pidStr = std::to_string(this->container->init->pid);
+    auto configStr = nlohmann::json(*this->container->config).dump();
+
+    const char *args[4] = {"monitor", pidStr.c_str(), configStr.c_str()};
+
+    int ret = execve("/proc/self/exe", const_cast<char *const *>(args), environ);
+    if (ret) {
+        spdlog::error("Failed to exec monitor: {}", strerror(errno));
+        return;
+    }
 }
 } // namespace linglong
