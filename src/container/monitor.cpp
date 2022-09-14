@@ -69,24 +69,32 @@ void Container::Monitor::run()
 
         container->sync << 0;
 
-        spdlog::debug("monitor: waiting init to request run poststart");
-        this->sync >> msg;
-        spdlog::debug("monitor: done");
-        if (msg) {
-            throw std::runtime_error("Error during waiting request run poststart");
-        }
-
-        if (config.hooks.has_value() && config.hooks->poststart.has_value()) {
-            for (const auto &hook : config.hooks->poststart.value()) {
-                execHook(hook);
+        try {
+            spdlog::debug("monitor: waiting init to request run poststart");
+            this->sync >> msg;
+            spdlog::debug("monitor: done");
+            if (msg) {
+                throw std::runtime_error("Error during waiting request run poststart");
             }
+
+            if (config.hooks.has_value() && config.hooks->poststart.has_value()) {
+                for (const auto &hook : config.hooks->poststart.value()) {
+                    execHook(hook);
+                }
+            }
+
+            ignoreParentDie();
+
+            container->init->sync << 0;
+
+            this->exec(); // NOTE: will not return
+        } catch (const std::exception &e) {
+            std::stringstream s;
+            util::printException(s, e);
+            spdlog::error("monitor: Unhanded exception occur after exec process: {}", s);
+        } catch (...) {
+            spdlog::error("monitor: Unhanded exception occur after exec process");
         }
-
-        ignoreParentDie();
-
-        container->init->sync << 0;
-
-        this->exec(); // NOTE: will not return
 
     } catch (const std::runtime_error &e) {
         std::stringstream s;
@@ -133,10 +141,11 @@ void Container::Monitor::exec()
         close(i);
     }
 
-    auto pidStr = std::to_string(this->container->init->pid);
+    auto initPidStr = std::to_string(this->container->state.pid);
+    auto rootfsPidStr = std::to_string(this->container->rootfs->pid);
     auto configStr = nlohmann::json(*this->container->config).dump();
 
-    const char *args[4] = {"monitor", pidStr.c_str(), configStr.c_str()};
+    const char *args[5] = {"monitor", initPidStr.c_str(), rootfsPidStr.c_str(), configStr.c_str()};
 
     int ret = execve("/proc/self/exe", const_cast<char *const *>(args), environ);
     if (ret) {

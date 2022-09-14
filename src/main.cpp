@@ -22,11 +22,9 @@
 int main(int argc, char **argv)
 {
     if (std::string(argv[0]) == "init") {
-        init(std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]));
-        return 0;
+        return init(std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]));
     } else if (std::string(argv[0]) == "monitor") {
-        monitor(std::atoi(argv[1]),std::string(argv[2]));
-        return 0;
+        return monitor(std::atoi(argv[1]), std::atoi(argv[2]), std::string(argv[3]));
     }
 
     auto cmd = linglong::showHelpInfomationError;

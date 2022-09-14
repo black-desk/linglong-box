@@ -26,9 +26,9 @@ void Container::Rootfs::run()
     }
 
     spdlog::debug("rootfs: start");
-    this->init(ppid);
 
     try {
+        this->init(ppid);
         int ret = -1;
         ret = unshare(this->unshareFlag);
         if (ret != 0) {
@@ -87,9 +87,13 @@ void Container::Rootfs::run()
     exit(-1);
 }
 
-void Container::Rootfs::init(pid_t ppid) noexcept
+void Container::Rootfs::init(pid_t ppid)
 {
     makeSureParentSurvive(ppid);
+    int ret = setpgid(getpid(), getpid());
+    if (ret) {
+        throw fmt::system_error(errno, "Failed to call setpgid");
+    }
 }
 
 void Container::Rootfs::prepareRootfs()

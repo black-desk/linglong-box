@@ -14,7 +14,7 @@
 #include "util/exception.h"
 #include "util/fd.h"
 
-void init(int listenFD, int startFD, int appPID)
+int init(int listenFD, int startFD, int appPID)
 {
     try {
         linglong::util::FD _(listenFD);

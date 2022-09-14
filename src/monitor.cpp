@@ -2,6 +2,7 @@
 #include "oci/config.h"
 #include "oci/util.h"
 #include "spdlog/spdlog.h"
+#include "util/exception.h"
 
 #include <fmt/format.h>
 
@@ -12,7 +13,7 @@
 
 #include <util/fd.h>
 
-void monitor(int initPID, std::string rawJson)
+int monitor(int initPID, int rootfsPID, std::string rawJson)
 {
     sigset_t mask;
     if (sigemptyset(&mask)) {
@@ -74,7 +75,22 @@ void monitor(int initPID, std::string rawJson)
 
     if (c.hooks.has_value() && c.hooks->poststop.has_value()) {
         for (const auto &hook : c.hooks->poststop.value()) {
-            linglong::OCI::execHook(hook);
+            try {
+                linglong::OCI::execHook(hook);
+            } catch (const std::exception &e) {
+                std::stringstream buf;
+                linglong::util::printException(buf, e);
+                spdlog::error("poststop hook {} failed: {}", hook.path, buf);
+            } catch (...) {
+                spdlog::warn("");
+            }
         }
     }
+
+    ret = kill(-rootfsPID, SIGTERM);
+    if (ret == -1) {
+        throw fmt::system_error(errno, "failed to release rootfs");
+    }
+
+    return 0;
 }

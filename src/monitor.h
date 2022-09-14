@@ -3,6 +3,6 @@
 
 #include <string>
 
-void monitor(int initPID, std::string rawJson);
+int monitor(int initPID,int rootfsPID, std::string rawJson);
 
 #endif

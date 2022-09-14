@@ -74,7 +74,7 @@ public:
 
         int unshareFlag;
 
-        void init(pid_t ppid) noexcept;
+        void init(pid_t ppid);
         void clear();
         void prepareRootfs();
     };
