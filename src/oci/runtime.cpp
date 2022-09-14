@@ -1,3 +1,4 @@
+#include <csignal>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -154,14 +155,48 @@ void Runtime::Start(const std::string &containerID, const bool interactive)
     }
 }
 
-void Runtime::Kill(const std::string &containerID)
+void Runtime::Kill(const std::string &containerID, const int &sig)
 {
-    // FIXME: TODO
+    using linglong::util::FlockGuard;
+
+    auto containerWorkingDir = this->workingDir / containerID;
+
+    try {
+        std::unique_ptr<ContainerRef> c;
+
+        {
+            auto lock = FlockGuard(this->workingDir);
+            c.reset(new ContainerRef(containerWorkingDir));
+        }
+
+        c->Kill(sig);
+
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("Command kill failed"));
+    }
 }
+
 void Runtime::Delete(const std::string &containerID)
 {
-    // FIXME: TODO
+    using linglong::util::FlockGuard;
+
+    auto containerWorkingDir = this->workingDir / containerID;
+
+    try {
+        std::unique_ptr<ContainerRef> c;
+
+        {
+            auto lock = FlockGuard(this->workingDir);
+            c.reset(new ContainerRef(containerWorkingDir));
+        }
+
+        c->Delete();
+
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("Command kill failed"));
+    }
 }
+
 nlohmann::json Runtime::State(const std::string &containerID)
 {
     // FIXME: TODO

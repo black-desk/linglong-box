@@ -30,7 +30,7 @@ public:
     void Start(const std::string &containerID, const bool interactive = false);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#kill
-    void Kill(const std::string &containerID);
+    void Kill(const std::string &containerID,const int& signal);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#delete
     void Delete(const std::string &containerID);

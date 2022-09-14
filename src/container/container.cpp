@@ -290,6 +290,17 @@ ContainerRef::ContainerRef(const std::filesystem::path &workingPath)
     nlohmann::json stateJson;
     stateJsonFile >> stateJson;
     stateJson.get_to(this->state);
+
+    if (this->state.pid != 0) {
+        if (kill(this->state.pid, 0)) {
+            if (errno != ESRCH) {
+                throw fmt::system_error(errno, "failed to call kill({}, 0)", this->state.pid);
+            } else {
+                this->state.pid = 0;
+                this->state.status = "stopped";
+            }
+        }
+    }
 }
 
 void ContainerRef::Start()
@@ -304,5 +315,15 @@ void ContainerRef::Start()
 
     this->state.status = "running";
     this->terminalFD = msg.fds.empty() ? nullptr : msg.fds.front();
+}
+
+void ContainerRef::Kill(const int &sig)
+{
+    if (this->state.status != "created" && this->state.status != "running") {
+        throw fmt::system_error(EINVAL, "Cannot kill container neither \"created\" nor \"running\"");
+    }
+    if (kill(this->state.pid, sig)) {
+        throw fmt::system_error(errno, "failed to call kill({}, {})", this->state.pid, sig);
+    }
 }
 } // namespace linglong

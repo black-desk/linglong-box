@@ -105,7 +105,7 @@ public:
         void waitStart();
         pid_t execProcess(const OCI::Config::Process &p);
 
-        void exec(util::Socket& sync, pid_t pid);
+        void exec(util::Socket &sync, pid_t pid);
     };
 
     Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
@@ -129,6 +129,7 @@ public:
 struct ContainerRef {
     ContainerRef(const std::filesystem::path &workingPath);
     void Start();
+    void Kill(const int &sig);
 
     int connect();
 
