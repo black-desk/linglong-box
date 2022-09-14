@@ -71,15 +71,20 @@ void init(int listenFD, int startFD, int appPID)
                 throw fmt::system_error(errno, "Failed to get signalfd_siginfo");
             }
             if (info.ssi_signo == SIGCHLD) {
-                int stat;
-                int pid = wait(&stat);
-                if (pid == -1) {
-                    throw fmt::system_error(errno, "Failed to wait dead child process");
-                }
-                auto it = fdmap.find(pid);
-                if (it != fdmap.end()) {
-                    *it->second << linglong::util::Message({{"messgae", "end"}, {}});
-                    fdmap.erase(it);
+                while (true) {
+                    int stat;
+                    int pid = waitpid(-1, &stat, WNOHANG);
+                    if (pid == -1) {
+                        throw fmt::system_error(errno, "Failed to wait dead child process");
+                    }
+                    if (pid == 0) {
+                        break;
+                    }
+                    auto it = fdmap.find(pid);
+                    if (it != fdmap.end()) {
+                        *it->second << linglong::util::Message({{"messgae", "end", "stat", stat}, {}});
+                        fdmap.erase(it);
+                    }
                 }
             } else if (info.ssi_signo == SIGTERM) {
                 epoll.end();

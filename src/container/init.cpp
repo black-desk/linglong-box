@@ -17,6 +17,7 @@
 #include "container.h"
 #include "util/exception.h"
 #include "util/fd.h"
+#include "oci/util.h"
 
 static const uint PTSNAME_LEN = 64;
 
@@ -99,7 +100,7 @@ void Container::Init::run()
 
             if (config.hooks.has_value() && config.hooks->createContainer.has_value()) {
                 for (const auto &hook : config.hooks->createContainer.value()) {
-                    execHook(hook);
+                    linglong::OCI::execHook(hook);
                 }
             }
 
@@ -373,7 +374,7 @@ void Container::Init::waitStart()
 
     if (config.hooks.has_value() && config.hooks->startContainer.has_value()) {
         for (const auto &hook : config.hooks->startContainer.value()) {
-            execHook(hook);
+            linglong::OCI::execHook(hook);
         }
     }
 
@@ -415,7 +416,7 @@ pid_t Container::Init::execProcess(const OCI::Config::Process &process)
     return linglong::OCI::execProcess(process);
 }
 
-void Container::Init::exec(util::Socket& p, pid_t pid)
+void Container::Init::exec(util::Socket &p, pid_t pid)
 {
     int fdlimit = (int)sysconf(_SC_OPEN_MAX);
     for (int i = STDERR_FILENO + 1; i < fdlimit; i++) {

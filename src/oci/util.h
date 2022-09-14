@@ -6,6 +6,7 @@
 namespace linglong::OCI {
 
 pid_t execProcess(const OCI::Config::Process &process);
+void execHook(const linglong::OCI::Config::Hooks::Hook &hook);
 } // namespace linglong::OCI::util
 
 #endif

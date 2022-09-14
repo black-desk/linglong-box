@@ -3,8 +3,9 @@
 #include <sys/prctl.h>
 
 #include "container.h"
+#include "oci/util.h"
 #include "util/exception.h"
-#include "util/sync.h"
+#include "util/fd.h"
 
 namespace linglong {
 
@@ -111,7 +112,7 @@ void Container::Rootfs::prepareRootfs()
                 environPassThrough(), -1};
 
             try {
-                execHook(busHook);
+                linglong::OCI::execHook(busHook);
             } catch (...) {
                 // TODO:
             }
@@ -137,7 +138,7 @@ void Container::Rootfs::prepareRootfs()
             environPassThrough(), 0};
 
         try {
-            execHook(overlayfsHook);
+            linglong::OCI::execHook(overlayfsHook);
         } catch (...) {
             // TODO:
         }

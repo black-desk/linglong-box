@@ -3,6 +3,7 @@
 #include <sys/prctl.h>
 
 #include "container.h"
+#include "oci/util.h"
 #include "util/exception.h"
 #include "util/fd.h"
 namespace linglong {
@@ -54,7 +55,7 @@ void Container::Monitor::run()
 
         if (config.hooks.has_value() && config.hooks->createRuntime.has_value()) {
             for (const auto &hook : config.hooks->createRuntime.value()) {
-                execHook(hook);
+                linglong::OCI::execHook(hook);
             }
         }
 

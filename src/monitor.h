@@ -1,6 +1,8 @@
 #ifndef LINGLONG_BOX_SRC_MONITOR_H
 #define LINGLONG_BOX_SRC_MONITOR_H
 
-void monitor(char *rawJson);
+#include <string>
+
+void monitor(int initPID, std::string rawJson);
 
 #endif

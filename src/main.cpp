@@ -25,7 +25,7 @@ int main(int argc, char **argv)
         init(std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]));
         return 0;
     } else if (std::string(argv[0]) == "monitor") {
-        monitor(argv[1]);
+        monitor(std::atoi(argv[1]),std::string(argv[2]));
         return 0;
     }
 

@@ -15,7 +15,6 @@ namespace linglong {
 
 void configIDMapping(pid_t target, const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &uidMappings,
                      const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &gidMappings);
-void execHook(const linglong::OCI::Config::Hooks::Hook &hook);
 
 void makeSureParentSurvive(pid_t ppid = 0) noexcept;
 
