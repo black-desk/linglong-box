@@ -13,12 +13,15 @@ class Runtime
 public:
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#state
     struct State {
+        struct Annotations {
+            int monitorPid;
+        };
         std::string ociVersion;
         std::string id;
         std::string status;
         int pid;
         std::string bundle;
-        std::optional<Config::Annotations> annotations;
+        std::optional<Annotations> annotations;
     };
 
     Runtime();
@@ -30,7 +33,7 @@ public:
     void Start(const std::string &containerID, const bool interactive = false);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#kill
-    void Kill(const std::string &containerID,const int& signal);
+    void Kill(const std::string &containerID, const int &signal);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#delete
     void Delete(const std::string &containerID);
@@ -47,10 +50,12 @@ public:
 private:
     std::filesystem::path workingDir;
     void updateState(const std::filesystem::path &containerWorkingDir, const struct State &state);
-    void proxy(int in, int out, int notify,int target);
+    void proxy(int in, int out, int notify, int target);
 };
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Runtime::State::Annotations, monitorPid);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(struct Runtime::State, ociVersion, id, status, pid, bundle,
                                                 annotations);
+
 } // namespace linglong::OCI
 #endif

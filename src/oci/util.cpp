@@ -8,6 +8,7 @@
 
 #include <sys/signal.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 
 #include "util/fd.h"
 #include "util/wait.h"
@@ -30,6 +31,34 @@ pid_t execProcess(const OCI::Config::Process &process)
     } else {
         int ret;
         sync >> ret;
+
+        std::unique_ptr<util::FD> pty(new util::FD(open("/dev/ptmx", O_RDWR | O_NOCTTY | O_CLOEXEC)));
+
+        const uint PTSNAME_LEN = 64;
+        char buf[PTSNAME_LEN];
+        ret = ptsname_r(pty->fd, buf, sizeof(buf));
+        if (ret < 0)
+            throw std::runtime_error(fmt::format("Failed to get ptsname: {}", strerror(errno)));
+
+        ret = unlockpt(pty->fd);
+        if (ret < 0)
+            throw std::runtime_error(fmt::format("Failed to unlockpt: {}", strerror(errno)));
+
+        auto size = process.consoleSize;
+
+        struct winsize ws;
+        if (!size.has_value() && isatty(STDIN_FILENO)) {
+            ret = ioctl(pty->fd, TIOCGWINSZ, &ws);
+        if (ret < 0)
+            spdlog::warn("Failed to get console size of stdin: {}", strerror(errno));
+        }
+
+        ws = {size->height, size->width};
+
+        ret = ioctl(pty->fd, TIOCSWINSZ, &ws);
+        if (ret < 0)
+            throw std::runtime_error(fmt::format("Failed to set console size (height={}, width={}): {}", size->height,
+                                                 size->width, strerror(errno)));
         int fdlimit = (int)sysconf(_SC_OPEN_MAX);
         for (int i = STDERR_FILENO + 1; i < fdlimit; i++)
             close(i);

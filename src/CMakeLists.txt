@@ -6,19 +6,17 @@ add_executable(
   ll-box
   main.cpp
   commands.cpp
+  init.cpp
+  monitor.cpp
+  oci/parse.cpp
   oci/runtime.cpp
-  oci/config.cpp
-  util/common.cpp
-  util/filesystem.cpp
-  util/semaphore.cpp
-  util/debug/debug.cpp
-  util/platform.cpp
-  util/logger.cpp
-  util/message_reader.cpp
+  oci/util.cpp
+  util/fd.cpp
+  util/lock.cpp
   container/container.cpp
-  container/mount/host_mount.cpp
-  container/mount/filesystem_driver.cpp
-  container/seccomp.cpp)
+  container/container_option.cpp
+  container/init.cpp
+  container/rootfs.cpp)
 
 target_link_libraries(ll-box ${LINK_LIBS})
 

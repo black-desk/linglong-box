@@ -15,8 +15,6 @@
 #include <filesystem>
 namespace linglong::util::fs {
 void touch(std::filesystem::path path, __mode_t mode);
-void mkdirp(std::filesystem::path path, __mode_t mode);
-void mkdiratp(const util::FD &parent, std::filesystem::path path, __mode_t mode);
 void mkdir(std::filesystem::path path, __mode_t mode);
 void rmrf(std::filesystem::path path);
 

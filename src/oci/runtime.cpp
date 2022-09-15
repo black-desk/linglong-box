@@ -13,7 +13,7 @@
 
 #include "container/container.h"
 #include "runtime.h"
-#include "util/filesystem.h"
+#include "util/fd.h"
 #include "util/lock.h"
 #include "util/epoll.h"
 
@@ -30,9 +30,6 @@ Runtime::Runtime()
 void Runtime::Create(const std::string &containerID, const std::string &pathToBundle)
 {
     using linglong::util::FlockGuard;
-    using linglong::util::fs::mkdirp;
-    using linglong::util::fs::mkdir;
-    using linglong::util::fs::rmrf;
 
     auto bundle = std::filesystem::absolute(pathToBundle);
     auto containerWorkingDir = this->workingDir / containerID;
@@ -40,12 +37,12 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
     std::unique_ptr<Container> container;
 
     try {
-        mkdirp(this->workingDir, 0755);
+        std::filesystem::create_directories(this->workingDir);
 
         {
             auto guard = FlockGuard(this->workingDir);
 
-            mkdir(containerWorkingDir, 0755);
+            std::filesystem::create_directory(containerWorkingDir);
 
             std::ifstream configJsonFile;
             configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -106,7 +103,7 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
         }
     } catch (const std::runtime_error &e) {
         auto guard = FlockGuard(this->workingDir);
-        rmrf(containerWorkingDir);
+        std::filesystem::remove_all(containerWorkingDir);
         std::throw_with_nested(std::runtime_error(
             fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle)));
     }
@@ -192,6 +189,11 @@ void Runtime::Delete(const std::string &containerID)
 
         c->Delete();
 
+        {
+            auto lock = FlockGuard(this->workingDir);
+            std::filesystem::remove_all(this->workingDir);
+        }
+
     } catch (...) {
         std::throw_with_nested(std::runtime_error("Command kill failed"));
     }
@@ -199,16 +201,73 @@ void Runtime::Delete(const std::string &containerID)
 
 nlohmann::json Runtime::State(const std::string &containerID)
 {
-    // FIXME: TODO
+    using linglong::util::FlockGuard;
+
+    auto containerWorkingDir = this->workingDir / containerID;
+
+    try {
+        std::unique_ptr<ContainerRef> c;
+
+        {
+            auto lock = FlockGuard(this->workingDir);
+            c.reset(new ContainerRef(containerWorkingDir));
+        }
+
+        nlohmann::json ret;
+        ret = c->state;
+        return ret;
+
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("Command state failed"));
+    }
 }
+
 std::vector<std::string> Runtime::List() const
 {
-    // FIXME: TODO
+    using linglong::util::FlockGuard;
+
+    try {
+        auto lock = FlockGuard(this->workingDir);
+        std::vector<std::string> ret;
+        for (const auto &entry : std::filesystem::directory_iterator(this->workingDir)) {
+            ret.push_back(entry.path().filename());
+        }
+        return ret;
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("Command list failed"));
+    }
 }
 
 int Runtime::Exec(const std::string &containerID, const std::string &pathToProcess, const bool detach)
 {
-    // FIXME: TODO
+    using linglong::util::FlockGuard;
+    auto containerWorkingDir = this->workingDir / containerID;
+
+    try {
+        std::unique_ptr<ContainerRef> c;
+        {
+            auto lock = FlockGuard(this->workingDir);
+            c.reset(new ContainerRef(containerWorkingDir));
+        }
+        std::ifstream processJsonFile;
+        processJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+        processJsonFile.open(pathToProcess);
+
+        nlohmann::json processJson;
+        processJsonFile >> processJson;
+
+        auto fds = std::vector<std::shared_ptr<util::FD>> {
+            std::make_shared<util::FD>(dup(STDIN_FILENO)),
+            std::make_shared<util::FD>(dup(STDOUT_FILENO)),
+            std::make_shared<util::FD>(dup(STDERR_FILENO)),
+        };
+
+        util::Message m({{{"command", "exec"}, {"process", processJson}}, fds});
+
+    } catch (...) {
+        std::throw_with_nested(std::runtime_error("Command list failed"));
+    }
 }
 
 int Runtime::Exec(const std::string &containerID, const std::vector<std::string> &commandToExec, const bool detach)

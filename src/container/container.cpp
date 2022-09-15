@@ -35,12 +35,7 @@ Container::Container(const std::string &containerID, const std::filesystem::path
 
     this->containerRoot.reset(new util::FD(open(this->config->root.path.c_str(), O_PATH | O_CLOEXEC)));
 
-    this->state = {this->config->ociVersion,
-                   containerID,
-                   "creating",
-                   0,
-                   bundle,
-                   this->config->annotations.value_or(OCI::Config::Annotations()).raw};
+    this->state = {this->config->ociVersion, containerID, "creating", 0, bundle, OCI::Runtime::State::Annotations({0})};
 };
 
 void Container::Create()
@@ -55,6 +50,7 @@ void Container::Create()
         if (msg == -1) {
             throw std::runtime_error("Failed to create container");
         } else {
+            this->state.annotations->monitorPid = this->monitor->pid;
             this->state.pid = msg;
             this->state.status = "created";
         }
@@ -189,7 +185,7 @@ void doMount(const linglong::OCI::Config::Mount &m, const util::FD &root, const 
             if (!std::filesystem::is_directory(m.source.value())) {
                 util::fs::touch(rootpath / m.destination, 0644);
             } else {
-                util::fs::mkdirp(rootpath / m.destination, 0644);
+                std::filesystem::create_directories(rootpath / m.destination);
             }
         }
 
@@ -325,5 +321,21 @@ void ContainerRef::Kill(const int &sig)
     if (kill(this->state.pid, sig)) {
         throw fmt::system_error(errno, "failed to call kill({}, {})", this->state.pid, sig);
     }
+}
+
+void ContainerRef::Delete()
+{
+    int &monitor = this->state.annotations->monitorPid;
+    if (this->state.status != "stopped") {
+        throw fmt::system_error(EINVAL, "Cannot delete container not \"stopped\"");
+    }
+    if (kill(-monitor, SIGTERM)) {
+        throw fmt::system_error(errno, "failed to call kill({}, {})", -monitor, SIGTERM);
+    }
+}
+
+void ContainerRef::Exec()
+{
+    
 }
 } // namespace linglong

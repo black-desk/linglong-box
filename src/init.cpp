@@ -90,9 +90,13 @@ int init(int listenFD, int startFD, int appPID)
                 epoll.end();
             }
         });
+        return 0;
     } catch (const std::exception &e) {
         std::stringstream buf;
         linglong::util::printException(buf, e);
         spdlog::error("init failed: {}", buf);
+    } catch (...) {
+        spdlog::error("init failed");
     }
+    return -1;
 }

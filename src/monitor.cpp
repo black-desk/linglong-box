@@ -82,7 +82,7 @@ int monitor(int initPID, int rootfsPID, std::string rawJson)
                 linglong::util::printException(buf, e);
                 spdlog::error("poststop hook {} failed: {}", hook.path, buf);
             } catch (...) {
-                spdlog::warn("");
+                spdlog::error("poststop hook {} failed", hook.path);
             }
         }
     }

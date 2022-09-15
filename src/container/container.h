@@ -99,7 +99,6 @@ public:
         void setCgroup();
         void setSeccomp();
         void setDevices();
-        void setConsole();
 
         void pivotRoot();
         void waitStart();
@@ -130,6 +129,8 @@ struct ContainerRef {
     ContainerRef(const std::filesystem::path &workingPath);
     void Start();
     void Kill(const int &sig);
+    void Delete();
+    void Exec();
 
     int connect();
 

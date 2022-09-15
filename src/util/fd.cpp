@@ -133,6 +133,9 @@ void writeWithRetry(int fd, void *buffer, std::size_t len, const std::vector<std
 FD::FD(int fd)
     : fd(fd)
 {
+    if (fd < 0) {
+        throw fmt::system_error(EBADFD, "Bad fd");
+    }
 }
 
 FD::~FD()
