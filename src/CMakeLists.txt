@@ -14,7 +14,6 @@ add_executable(
   util/fd.cpp
   util/lock.cpp
   container/container.cpp
-  container/container_option.cpp
   container/init.cpp
   container/rootfs.cpp)
 
