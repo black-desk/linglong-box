@@ -1,12 +1,5 @@
-/*
- * Copyright (c) 2020-2021. Uniontech Software Ltd. All rights reserved.
- *
- * Author:     Iceyer <me@iceyer.net>
- *
- * Maintainer: Chen Linxuan <chenlinxuan@uniontech.com>
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
+#include <functional>
+#include <map>
 
 #include "init.h"
 #include "monitor.h"
@@ -18,12 +11,17 @@
 int main(int argc, char **argv)
 {
     auto exe = std::string(argv[0]);
-    if (exe == "init") {
-        return linglong::box::init(argc, argv);
-    } else if (exe == "monitor") {
-        return linglong::box::monitor(argc, argv);
-    } else if (exe == "rootfs-preparer") {
-        return linglong::box::rootfs_preparer(argc, argv);
+
+    std::map<std::string, std::function<int(int, char **)>> programs = {
+        {"init", linglong::box::init},
+        {"monitor", linglong::box::monitor},
+        {"rootfs-preparer", linglong::box::rootfs_preparer},
+    };
+
+    auto program = programs.find(exe);
+
+    if (program != programs.end()) {
+        program->second(argc, argv);
     } else {
         return linglong::box::ll_box(argc, argv);
     }

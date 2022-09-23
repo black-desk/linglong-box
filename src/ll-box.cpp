@@ -7,7 +7,7 @@
 
 #include "spdlog/spdlog.h"
 
-namespace linglong::box{
+namespace linglong::box {
 
 int ll_box(int argc, char **argv)
 {
@@ -46,4 +46,4 @@ int ll_box(int argc, char **argv)
     return 0;
 }
 
-}
+} // namespace linglong::box

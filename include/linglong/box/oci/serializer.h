@@ -1,4 +1,4 @@
-#ifndef LINGLONG_BOX_SRC_OCI_SERIALIZER_H 
+#ifndef LINGLONG_BOX_SRC_OCI_SERIALIZER_H
 #define LINGLONG_BOX_SRC_OCI_SERIALIZER_H
 
 #include <nlohmann/json.hpp>
@@ -27,5 +27,5 @@ struct adl_serializer<std::optional<T>> {
     }
 };
 } // namespace nlohmann
- 
+
 #endif /* ifndef SYMBOL */

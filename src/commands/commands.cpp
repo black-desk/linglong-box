@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "ll-box/oci/runtime.h"
+#include "linglong/box/oci/runtime.h"
 
 #include "commands.h"
 
@@ -63,7 +63,7 @@ void create(int argc, char **argv)
         // default to use "." as bundle path
         std::string pathToBundle(argc > 4 ? argv[3] : ".");
 
-        linglong::OCI::Runtime r;
+        linglong::box::OCI::Runtime r;
 
         r.Create(containerID, pathToBundle);
 

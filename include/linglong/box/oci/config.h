@@ -10,7 +10,7 @@
 
 #include "serializer.h"
 
-namespace linglong::OCI {
+namespace linglong::box::OCI {
 
 // https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md
 // LINUX https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config-linux.md

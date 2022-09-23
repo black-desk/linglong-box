@@ -5,7 +5,7 @@
 
 #include "config.h"
 
-namespace linglong::OCI {
+namespace linglong::box::OCI {
 
 // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md
 class Runtime
@@ -57,5 +57,5 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Runtime::State::Annotations, mon
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(struct Runtime::State, ociVersion, id, status, pid, bundle,
                                                 annotations);
 
-} // namespace linglong::OCI
+} // namespace linglong::box::OCI
 #endif
