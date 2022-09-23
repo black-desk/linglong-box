@@ -1,12 +1,11 @@
 #include <functional>
 #include <map>
+#include <string>
 
 #include "init.h"
 #include "monitor.h"
 #include "rootfs_preparer.h"
 #include "ll-box.h"
-
-#include <string>
 
 int main(int argc, char **argv)
 {
