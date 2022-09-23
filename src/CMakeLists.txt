@@ -5,7 +5,7 @@ set(LINK_LIBS seccomp stdc++)
 add_executable(
   ll-box
   main.cpp
-  commands.cpp
+  commands/commands.cpp
   init.cpp
   monitor.cpp
   oci/parse.cpp
