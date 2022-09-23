@@ -1,9 +1,10 @@
 #ifndef LINGLONG_BOX_SRC_OCI_RUNTIME_H
 #define LINGLONG_BOX_SRC_OCI_RUNTIME_H
 
+#include <filesystem>
 #include <string>
-
-#include "config.h"
+#include <optional>
+#include <vector>
 
 namespace linglong::box::OCI {
 
@@ -39,7 +40,7 @@ public:
     void Delete(const std::string &containerID);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#query-state
-    nlohmann::json State(const std::string &containerID);
+    struct State State(const std::string &containerID);
 
     // NOT STANDARD
 
