@@ -14,6 +14,7 @@
 #include "util/exception.h"
 #include "util/fd.h"
 
+namespace linglong::box {
 int init(int listenFD, int startFD, int appPID)
 {
     try {
@@ -100,3 +101,4 @@ int init(int listenFD, int startFD, int appPID)
     }
     return -1;
 }
+} // namespace linglong::box
