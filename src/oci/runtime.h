@@ -6,6 +6,9 @@
 #include <optional>
 #include <vector>
 
+#include "nlohmann/json.hpp"
+
+
 namespace linglong::box::OCI {
 
 // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md
@@ -28,7 +31,7 @@ public:
     Runtime();
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#create
-    void Create(const std::string &containerID, const std::string &pathToBundle);
+    void Create(const std::string &containerID, const std::filesystem::path &pathToBundle);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#start
     void Start(const std::string &containerID, const bool interactive = false);

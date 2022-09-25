@@ -1,99 +1,47 @@
+#include <filesystem>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
 #include <iostream>
 #include <sstream>
 
-#include "linglong/box/oci/runtime.h"
+#include "oci/runtime.h"
 
 #include "commands.h"
 
-namespace linglong {
+namespace linglong::box {
 
-static void doShowHelpInfomation(bool) noexcept;
-
-void showHelpInfomation(int argc, char **argv)
-{
-    doShowHelpInfomation(false);
-}
-
-void showHelpInfomationError(int argc, char **argv)
-{
-    doShowHelpInfomation(true);
-}
-
-static std::string helpInfomation = R"(OCI runtime for linglong.
-
-  Usage: ll-box create CONTAINER_ID [PATH_TO_BUNDLE]
-         ll-box start [-i] CONTAINER_ID
-         ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
-         ll-box exec [-d] CONTAINER_ID -- COMMAND
-         ll-box stop CONTAINER_ID
-         ll-box state CONTAINER_ID
-         ll-box kill CONTAINER_ID
-         ll-box delete CONTAINER_ID
-         ll-box --help # show this help information)";
-
-static std::runtime_error unexpectedCommandLineArgumentsError("unexpected command line arguments");
-
-static void doShowHelpInfomation(bool isError) noexcept
-{
-    auto *out = isError ? &std::cerr : &std::cout;
-
-    *out << helpInfomation << std::endl;
-
-    if (isError) {
-        exit(-1);
+#define COMMAND(name, X) \
+    { \
+#name,[](const docoptArgs &args){try X catch(...){std::throw_with_nested(std::runtime_error("command name failed"));}} \
     }
-}
 
-// TODO: option should not be parsed manually.
+std::vector<std::pair<std::string, std::function<void(const docoptArgs &)>>> commands = {
+    COMMAND(create,
+            {
+                linglong::box::OCI::Runtime r;
+                std::string containerID = args.find("<container_id>")->second.asString();
+                std::filesystem::path pathToBundle = args.find("<path_to_bundle>")->second.asString();
+                if (pathToBundle.empty()) {
+                    pathToBundle = std::filesystem::current_path();
+                }
+                r.Create(containerID, pathToBundle);
+            }),
+    COMMAND(start, {
+                    linglong::box::OCI::Runtime r;
+                std::string containerID = args.find("<container_id>")->second.asString();
 
-void create(int argc, char **argv)
-{
-    // ll-box create CONTAINER_ID [PATH_TO_BUNDLE]
 
-    try {
-        if (std::string(argv[1]) != "create" || argc < 3 || argc > 4) {
-            throw unexpectedCommandLineArgumentsError;
-        }
+        r.Start(containerID, interactive);
 
-        std::string containerID(argv[2]);
-
-        // default to use "." as bundle path
-        std::string pathToBundle(argc > 4 ? argv[3] : ".");
-
-        linglong::box::OCI::Runtime r;
-
-        r.Create(containerID, pathToBundle);
-
-        return;
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command create failed"));
-    }
-}
+                    }),
+};
 
 void start(int argc, char **argv)
 {
     // ll-box start [-i] CONTAINER_ID
 
     try {
-        if (std::string(argv[1]) != "start" || argc < 3) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        bool interactive = false;
-        if (std::string(argv[2]) == "-i") {
-            interactive = true;
-        }
-
-        int optionOffset = interactive;
-
-        std::string containerID(argv[2 + optionOffset]);
-
-        linglong::OCI::Runtime r;
-
-        r.Start(containerID, interactive);
     } catch (...) {
         std::throw_with_nested(std::runtime_error("command start failed"));
     }
@@ -228,4 +176,4 @@ void exec(int argc, char **argv)
         std::throw_with_nested(std::runtime_error("command exec failed"));
     }
 }
-} // namespace linglong
+} // namespace linglong::box
