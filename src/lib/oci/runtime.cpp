@@ -46,8 +46,9 @@ Runtime::Runtime()
         try {
             std::filesystem::create_directories(workingDir);
         } catch (...) {
-            std::throw_with_nested(fmt::system_error(errno, "failed to create working directory \"{}\": {}", workingDir,
-                                                     std::strerror(errno)));
+            auto err = fmt::system_error(errno, "failed to create working directory \"{}\"", workingDir);
+            SPDLOG_ERROR(err.what());
+            std::throw_with_nested(err);
         }
         return FD(path(workingDir), O_PATH);
     }())
@@ -75,8 +76,10 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
         try {
             std::filesystem::create_directory(containerWorkingDirPath);
         } catch (...) {
-            std::throw_with_nested(fmt::system_error(errno, "failed to create container working directory \"{}\": {}",
-                                                     containerWorkingDirPath, std::strerror(errno)));
+            auto err = fmt::system_error(errno, "failed to create container working directory \"{}\"",
+                                         containerWorkingDirPath);
+            SPDLOG_ERROR(err.what());
+            std::throw_with_nested(err);
         }
 
         auto containerWorkingDir = this->workingDir.at(containerID);
@@ -89,16 +92,21 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
             SPDLOG_ERROR(err.what());
             throw err;
         }
+
         auto socketFD = FD(ret);
 
-        std::filesystem::path addr = containerWorkingDirPath / "socket";
-        sockaddr_un name = {};
-        name.sun_family = AF_UNIX;
-        strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
+        {
+            std::filesystem::path addr = containerWorkingDirPath / "socket";
+            sockaddr_un name = {};
+            name.sun_family = AF_UNIX;
+            strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
 
-        ret = bind(socketFD.__fd, (const sockaddr *)&name, sizeof(name));
-        if (ret) {
-            throw fmt::system_error(errno, "failed to bind socket to \"{}\"", addr);
+            ret = bind(socketFD.__fd, (const sockaddr *)&name, sizeof(name));
+            if (ret) {
+                auto err = fmt::system_error(errno, "failed to bind socket to \"{}\"", addr);
+                SPDLOG_ERROR(err);
+                throw err;
+            }
         }
 
         // TODO
