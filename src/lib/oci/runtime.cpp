@@ -109,6 +109,31 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
             }
         }
 
+        std::unique_ptr<Builder> builder;
+
+        {
+            std::ifstream configJsonFile;
+            configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+            configJsonFile.open(bundle / "config.json");
+
+            nlohmann::json configJson;
+            configJsonFile >> configJson;
+
+            builder.reset(new ContainerBuilder(containerID, bundle, configJson, containerWorkingDir, socketFD,
+                                               {
+                                                   false,
+                                                   false,
+                                                   false,
+                                                   false,
+                                                   (1024 * 1024),
+                                                   true,
+                                                   true,
+                                               }));
+
+            this->updateState(containerWorkingDir, builder.container->state);
+        }
+
         // TODO
     }
 
