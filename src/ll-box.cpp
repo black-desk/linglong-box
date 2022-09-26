@@ -1,6 +1,9 @@
+#include <cstdlib>
+
 #include "ll-box.h"
 #include "commands.h"
 #include "util/exception.h"
+#include "util/log.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/syslog_sink.h"
@@ -29,7 +32,7 @@ int ll_box(int argc, char **argv)
     {
         auto syslog_logger = spdlog::syslog_logger_mt("syslog", "ll-box", LOG_PID);
         spdlog::set_default_logger(std::move(syslog_logger));
-        spdlog::set_level(spdlog::level::trace);
+        util::init_log_level();
     }
 
     std::string usage;
