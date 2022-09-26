@@ -17,8 +17,7 @@
 #include "util/lock.h"
 #include "util/epoll.h"
 
-namespace linglong {
-namespace OCI {
+namespace linglong::box::OCI {
 
 static const std::string workingDirTemplate = "/run/user/{}/linglong";
 
@@ -27,14 +26,14 @@ Runtime::Runtime()
 {
 }
 
-void Runtime::Create(const std::string &containerID, const std::string &pathToBundle)
+void Runtime::Create(const std::string &containerID, const std::filesystem::path &pathToBundle)
 {
     using linglong::util::FlockGuard;
 
     auto bundle = std::filesystem::absolute(pathToBundle);
     auto containerWorkingDir = this->workingDir / containerID;
 
-    std::unique_ptr<Container> container;
+    std::unique_ptr<ContainerBuilder> builder;
 
     try {
         std::filesystem::create_directories(this->workingDir);
@@ -56,10 +55,10 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
 
             socketFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
             if (socketFD != -1) {
-                throw std::runtime_error(fmt::format("Failed to create socket: {}", strerror(errno)));
+                throw fmt::system_error(errno, "Failed to create socket");
             }
 
-            std::filesystem::path addr = this->workingDir / "socket";
+            std::filesystem::path addr = containerWorkingDir / "socket";
 
             sockaddr_un name = {};
             name.sun_family = AF_UNIX;
@@ -68,36 +67,37 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
             int ret = -1;
             ret = bind(socketFD, (const sockaddr *)&name, sizeof(name));
             if (ret == -1) {
-                throw std::runtime_error(fmt::format("Failed to bind socket to \"{}\": {}", strerror(errno)));
+                throw fmt::system_error(errno, "Failed to bind socket to \"{}\"", addr);
             }
 
-            container.reset(new Container(containerID, bundle, configJson, containerWorkingDir, socketFD,
-                                          {
-                                              false,
-                                              false,
-                                              false,
-                                              false,
-                                              (1024 * 1024),
-                                              true,
-                                              true,
-                                          }));
+            builder.reset(new ContainerBuilder(containerID, bundle, configJson, containerWorkingDir, socketFD,
+                                               {
+                                                   false,
+                                                   false,
+                                                   false,
+                                                   false,
+                                                   (1024 * 1024),
+                                                   true,
+                                                   true,
+                                               }));
 
-            this->updateState(containerWorkingDir, container->state);
+            this->updateState(containerWorkingDir, builder.container->state);
         }
 
-        container->Create();
+        builder->Create();
 
         {
             auto guard = FlockGuard(this->workingDir);
-            this->updateState(containerWorkingDir, container->state);
+            this->updateState(containerWorkingDir, builder.container->state);
         }
 
-        container->monitor->sync << 0; // request run "createRuntime"
+        builder->monitorSync << 0; // request run "createRuntime"
 
         int msg = 0;
-        spdlog::debug("runtime: wait monitor to report hooks result");
-        container->sync >> msg;
-        spdlog::debug("runtime: done");
+        SPDLOG_DEBUG("Waiting monitor to report hooks result");
+        builder->sync >> msg;
+        SPDLOG_DEBUG("Done");
+
         if (msg != 0) {
             throw std::runtime_error("Error during waitting hooks finish");
         }
@@ -111,7 +111,7 @@ void Runtime::Create(const std::string &containerID, const std::string &pathToBu
 
 void Runtime::updateState(const std::filesystem::path &containerWorkingDir, const struct State &state)
 {
-    auto stateJsonPath = containerWorkingDir / std::filesystem::path("state.json");
+    auto stateJsonPath = containerWorkingDir / "state.json";
     std::ofstream stateJsonFile(stateJsonPath);
     if (!stateJsonFile.is_open()) {
         throw std::runtime_error(fmt::format("Failed to open file (\"{}\")", stateJsonPath));
@@ -121,21 +121,28 @@ void Runtime::updateState(const std::filesystem::path &containerWorkingDir, cons
     stateJsonFile << stateJson;
 }
 
-void Runtime::Start(const std::string &containerID, const bool interactive)
+void Runtime::Start(const std::string &containerID, const bool interactive, const std::string &consoleSocket,
+                    const int extraFDs, const bool boxAsInit)
 {
     using linglong::util::FlockGuard;
 
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        std::unique_ptr<ContainerRef> c;
+        std::unique_ptr<Container> c;
 
         {
             auto lock = FlockGuard(this->workingDir);
-            c.reset(new ContainerRef(containerWorkingDir));
+            c.reset(new Container(containerWorkingDir));
         }
 
-        c->Start();
+        std::vector<util::FD> fds;
+
+        for (int i = STDERR_FILENO + 1; i <= STDERR_FILENO + extraFDs; i++) {
+            fds.push_back(util::FD(i));
+        }
+
+        c->Start(consoleSocket, std::move(fds), consoleSocket, boxAsInit);
 
         {
             auto lock = FlockGuard(this->workingDir);
@@ -159,11 +166,11 @@ void Runtime::Kill(const std::string &containerID, const int &sig)
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        std::unique_ptr<ContainerRef> c;
+        std::unique_ptr<Container> c;
 
         {
             auto lock = FlockGuard(this->workingDir);
-            c.reset(new ContainerRef(containerWorkingDir));
+            c.reset(new Container(containerWorkingDir));
         }
 
         c->Kill(sig);
@@ -180,11 +187,11 @@ void Runtime::Delete(const std::string &containerID)
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        std::unique_ptr<ContainerRef> c;
+        std::unique_ptr<Container> c;
 
         {
             auto lock = FlockGuard(this->workingDir);
-            c.reset(new ContainerRef(containerWorkingDir));
+            c.reset(new Container(containerWorkingDir));
         }
 
         c->Delete();
@@ -199,23 +206,23 @@ void Runtime::Delete(const std::string &containerID)
     }
 }
 
-nlohmann::json Runtime::State(const std::string &containerID)
+void Runtime::State(const std::string &containerID)
 {
     using linglong::util::FlockGuard;
 
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        std::unique_ptr<ContainerRef> c;
+        std::unique_ptr<Container> c;
 
         {
             auto lock = FlockGuard(this->workingDir);
-            c.reset(new ContainerRef(containerWorkingDir));
+            c.reset(new Container(containerWorkingDir));
         }
 
         nlohmann::json ret;
         ret = c->state;
-        return ret;
+        // return ret;
 
     } catch (...) {
         std::throw_with_nested(std::runtime_error("Command state failed"));
@@ -244,10 +251,10 @@ int Runtime::Exec(const std::string &containerID, const std::string &pathToProce
     auto containerWorkingDir = this->workingDir / containerID;
 
     try {
-        std::unique_ptr<ContainerRef> c;
+        std::unique_ptr<Container> c;
         {
             auto lock = FlockGuard(this->workingDir);
-            c.reset(new ContainerRef(containerWorkingDir));
+            c.reset(new Container(containerWorkingDir));
         }
         std::ifstream processJsonFile;
         processJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -297,5 +304,4 @@ void Runtime::proxy(int in, int out, int notify, int target)
     epoll.run();
 }
 
-} // namespace OCI
-} // namespace linglong
+} // namespace linglong::box::OCI

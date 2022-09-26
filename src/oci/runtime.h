@@ -8,7 +8,6 @@
 
 #include "nlohmann/json.hpp"
 
-
 namespace linglong::box::OCI {
 
 // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md
@@ -34,7 +33,8 @@ public:
     void Create(const std::string &containerID, const std::filesystem::path &pathToBundle);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#start
-    void Start(const std::string &containerID, const bool interactive = false);
+    void Start(const std::string &containerID, const bool interactive, const std::string &consoleSocket,
+               const int extraFDs, const bool boxAsInit);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#kill
     void Kill(const std::string &containerID, const int &signal);
@@ -43,13 +43,15 @@ public:
     void Delete(const std::string &containerID);
 
     // https://github.com/opencontainers/runtime-spec/blob/main/runtime.md#query-state
-    struct State State(const std::string &containerID);
+    std::string State(const std::string &containerID);
 
     // NOT STANDARD
 
     std::vector<std::string> List() const;
-    int Exec(const std::string &containerID, const std::string &pathToProcess, const bool detach = false);
-    int Exec(const std::string &containerID, const std::vector<std::string> &commandToExec, const bool detach = false);
+    void Exec(const std::string &containerID, const std::filesystem::path &pathToProcess, const bool interactive,
+              const std::string &consoleSocket, const int extraFDs);
+    void Exec(const std::string &containerID, const std::vector<std::string> &commandToExec, const bool interactive,
+              const std::string &consoleSocket, const int extraFDs);
 
 private:
     std::filesystem::path workingDir;

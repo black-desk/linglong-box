@@ -3,45 +3,66 @@
 #include "util/exception.h"
 
 #include "spdlog/spdlog.h"
-#define DOCOPT_HEADER_ONLY
+#include "spdlog/sinks/syslog_sink.h"
 #include "docopt.cpp/docopt.h"
-#undef DOCOPT_HEADER_ONLY
 
 namespace linglong::box {
 
-static const char USAGE[] = R"(ll-box: OCI Runtime for linglong.
+static const char USAGE_TEMPLATE[] = R"(ll-box: OCI Runtime for linglong.
 
-    Usage: 
-      ll-box create <container_id> [--notify-socket=<notify_socket_address>] [<path_to_bundle>]
-      ll-box start [-i | (-d [--console-socket=<console_socket_address>])] [--extra-fds=<nfd>] [--box-as-init] <container_id>
-      ll-box exec <container_id> [-i | (-d [--console-socket=<console_socket_address>])] [--extra-fds=<nfd>] -p <path_to_process_json>
-      ll-box exec <container_id> [-i | (-d [--console-socket=<console_socket_address>])] [--extra-fds=<nfd>] [--] <command>...
-      ll-box stop <container_id>
-      ll-box state <container_id>
-      ll-box kill <container_id> [<signal>]
-      ll-box delete <container_id>
-      ll-box -h | --help
-      ll-box -v | --version
-    Options:
-      -h --help          Show this screen.
-      -v --version       Show version.
-      -i                 Execute command interactively.
-      -d                 Execute command then detach.
-      --extra-fds=<nfds> Number of extra fds should be passed to process. [default: 0]
+Usage:
+{}
+  ll-box -h | --help
+  ll-box -v | --version
+
+Options:
+  -h --help                   Show this screen.
+  -v --version                Show version.
+  -i                          Execute command interactively.
+  --console-socket=<address>  Socket address to recive tty fd of process.
+  --extra-fds=<nfds>          Number of extra fds should be passed to process. [default: 0]
+  --box-as-init               Let ll-box be the init(pid=1) in container instead of process.
 )";
 
 int ll_box(int argc, char **argv)
 {
-    std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true, "ll-box 1.0");
+    {
+        auto syslog_logger = spdlog::syslog_logger_mt("syslog", "ll-box", LOG_PID);
+        spdlog::set_default_logger(syslog_logger);
+    }
+
+    std::string usage;
+
     for (auto &command : commands) {
-        if (args.find(command.first) != args.end()) {
+        auto commandUsages = std::get<1>(command);
+        for (auto &commandUsage : commandUsages) {
+            usage += "  " + commandUsage + "\n";
+        }
+    }
+    usage = fmt::format(USAGE_TEMPLATE, usage);
+
+    SPDLOG_TRACE("generated usage:\n{}", usage);
+
+    std::map<std::string, docopt::value> args = docopt::docopt(usage, {argv + 1, argv + argc}, true, "ll-box 1.0");
+
+    SPDLOG_TRACE("parsed args:\n{}", [&args]() -> std::string {
+        std::stringstream buf;
+        for (auto &arg : args) {
+            buf << arg.first << arg.second << std::endl;
+        }
+        return buf.str();
+    }());
+
+    for (auto &command : commands) {
+        if (args.find(std::get<0>(command)) != args.end()) {
             try {
-                command.second(args);
+                std::get<2>(command)(args);
                 return 0;
             } catch (const std::exception &e) {
                 std::stringstream buf;
                 linglong::util::printException(buf, e);
-                spdlog::error("ll-box: command execution failed: {}", buf);
+                std::cerr << fmt::format("ll-box: command \"{}\" execution failed: {}", std::get<0>(command),
+                                         buf.str());
                 return -1;
             }
         }

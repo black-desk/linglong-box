@@ -11,169 +11,113 @@
 
 namespace linglong::box {
 
-#define COMMAND(name, X) \
+#define USAGE(...) \
     { \
-#name,[](const docoptArgs &args){try X catch(...){std::throw_with_nested(std::runtime_error("command name failed"));}} \
+        __VA_ARGS__ \
     }
 
-std::vector<std::pair<std::string, std::function<void(const docoptArgs &)>>> commands = {
-    COMMAND(create,
+#define COMMAND(name, usage, X) \
+    { \
+#name,usage,[](const docoptArgs &args){try X catch(...) {std::throw_with_nested(std::runtime_error("command name failed"));}} \
+    }
+
+std::vector<std::tuple<std::string, std::vector<std::string>, std::function<void(const docoptArgs &)>>> commands = {
+    COMMAND(create, USAGE("ll-box create <id> [<path_to_bundle>]"),
             {
-                linglong::box::OCI::Runtime r;
-                std::string containerID = args.find("<container_id>")->second.asString();
-                std::filesystem::path pathToBundle = args.find("<path_to_bundle>")->second.asString();
-                if (pathToBundle.empty()) {
-                    pathToBundle = std::filesystem::current_path();
+                std::string containerID = args.find("<id>")->second.asString();
+                std::filesystem::path pathToBundle = std::filesystem::current_path();
+                {
+                    auto arg = args.find("<path_to_bundle>");
+                    if (arg != args.end()) {
+                        pathToBundle = arg->second.asString();
+                    }
                 }
+                linglong::box::OCI::Runtime r;
                 r.Create(containerID, pathToBundle);
             }),
-    COMMAND(start, {
-                    linglong::box::OCI::Runtime r;
-                std::string containerID = args.find("<container_id>")->second.asString();
+    COMMAND(start, USAGE("ll-box start [(-i | --console-socket=<address>) --extra-fds=<nfd> --box-as-init] <id>"),
+            {
+                std::string containerID = args.find("<id>")->second.asString();
+                bool interactive = false;
+                {
+                    auto arg = args.find("-i");
+                    if (arg != args.end()) {
+                        interactive = arg->second.asBool();
+                    }
+                }
+                std::string consoleSocket = "";
+                {
+                    auto arg = args.find("--console-socket");
+                    if (arg != args.end()) {
+                        consoleSocket = arg->second.asString();
+                    }
+                }
+                int extraFDs = args.find("--extra-fds")->second.asLong();
+                bool boxAsInit = args.find("--box-as-init")->second.asBool();
 
+                linglong::box::OCI::Runtime r;
+                r.Start(containerID, interactive, consoleSocket, extraFDs, boxAsInit);
+            }),
+    COMMAND(exec,
+            USAGE("ll-box exec [(-i | --console-socket=<address>) --extra-fds=<nfd>] <id> -p <path_to_json>",
+                  "ll-box exec [(-i | --console-socket=<address>) --extra-fds=<nfd>] <id> [--] <command>..."),
+            {
+                std::string containerID = args.find("<id>")->second.asString();
+                bool interactive = false;
+                {
+                    auto arg = args.find("-i");
+                    if (arg != args.end()) {
+                        interactive = arg->second.asBool();
+                    }
+                }
+                std::string consoleSocket = "";
+                {
+                    auto arg = args.find("--console-socket");
+                    if (arg != args.end()) {
+                        consoleSocket = arg->second.asString();
+                    }
+                }
+                int extraFDs = args.find("--extra-fds")->second.asLong();
 
-        r.Start(containerID, interactive);
+                linglong::box::OCI::Runtime r;
 
-                    }),
+                if (args.find("-p")->second.asBool()) {
+                    std::filesystem::path pathToJson = args.find("<path_to_json>")->second.asString();
+                    r.Exec(containerID, pathToJson, interactive, consoleSocket, extraFDs);
+                } else {
+                    auto cmd = args.find("commands")->second.asStringList();
+                    r.Exec(containerID, cmd, interactive, consoleSocket, extraFDs);
+                }
+            }),
+    COMMAND(kill, USAGE("ll-box kill <id> [<signal>]"),
+            {
+                std::string containerID = args.find("<id>")->second.asString();
+                int signal = args.find("<signal>")->second.asLong();
+
+                linglong::box::OCI::Runtime r;
+                r.Kill(containerID, signal);
+            }),
+    COMMAND(state, USAGE("ll-box state <id>"),
+            {
+                std::string containerID = args.find("<id>")->second.asString();
+
+                linglong::box::OCI::Runtime r;
+                std::string state = r.State(containerID);
+                std::cout << state << std::endl;
+            }),
+    COMMAND(list, USAGE("ll-box list"),
+            {
+                linglong::box::OCI::Runtime r;
+                auto list = r.List();
+                for (auto &container : list) {
+                    std::cout << container << std::endl;
+                }
+            }),
+    COMMAND(delete, USAGE("ll-box delete <id>"),
+            {
+                std::string containerID = args.find("<id>")->second.asString();
+                linglong::box::OCI::Runtime r;
+                r.Delete(containerID);
+            }),
 };
-
-void start(int argc, char **argv)
-{
-    // ll-box start [-i] CONTAINER_ID
-
-    try {
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command start failed"));
-    }
-}
-
-void kill(int argc, char **argv)
-{
-    // ll-box kill CONTAINER_ID
-
-    try {
-        if (std::string(argv[1]) != "kill" || argc != 3) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        std::string containerID(argv[2]);
-
-        linglong::OCI::Runtime r;
-
-        r.Kill(containerID);
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command kill failed"));
-    }
-}
-
-void delete_(int argc, char **argv)
-{
-    // ll-box delete CONTAINER_ID
-
-    try {
-        if (std::string(argv[1]) != "delete" || argc != 3) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        std::string containerID(argv[2]);
-
-        linglong::OCI::Runtime r;
-
-        r.Delete(containerID);
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command delete failed"));
-    }
-}
-
-void list(int argc, char **argv)
-{
-    // ll-box list
-
-    try {
-        if (std::string(argv[1]) != "kill" || argc != 2) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        linglong::OCI::Runtime r;
-
-        auto containerIDs = r.List();
-
-        for (auto const &containerID : containerIDs) {
-            std::cout << containerID << std::endl;
-        }
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command list failed"));
-    }
-}
-
-void state(int argc, char **argv)
-{
-    // ll-box qurey CONTAINER_ID
-
-    try {
-        if (std::string(argv[1]) != "state" || argc != 3) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        std::string containerID(argv[2]);
-
-        linglong::OCI::Runtime r;
-
-        auto state = r.State(containerID);
-
-        std::cout << state << std::endl;
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command state failed"));
-    }
-}
-
-void exec(int argc, char **argv)
-{
-    // ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
-    // ll-box exec [-d] CONTAINER_ID -- COMMAND
-
-    try {
-        if (std::string(argv[1]) != "exec" || argc < 3) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        bool detach = false;
-        if (std::string(argv[2]) == "-d") {
-            detach = true;
-        }
-
-        int optionOffset = detach;
-
-        if (argc < 5 + optionOffset) {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-        std::string containerID(argv[2 + optionOffset]), spliter(argv[3 + optionOffset]);
-
-        linglong::OCI::Runtime r;
-
-        if (spliter == "-p") { // ll-box exec [-d] CONTAINER_ID -p PATH_TO_PROCESS_JSON
-
-            std::string pathToProcessJson(argv[4 + optionOffset]);
-
-            r.Exec(containerID, pathToProcessJson, detach);
-
-        } else if (spliter == "--") { // ll-box exec [-d] CONTAINER_ID -- COMMAND
-
-            std::vector<std::string> commandToExec;
-
-            for (int i = 4 + optionOffset; i < argc; i++) {
-                commandToExec.push_back(std::string(argv[i]));
-            }
-
-            r.Exec(containerID, commandToExec, detach);
-
-        } else {
-            throw unexpectedCommandLineArgumentsError;
-        }
-
-    } catch (...) {
-        std::throw_with_nested(std::runtime_error("command exec failed"));
-    }
-}
 } // namespace linglong::box

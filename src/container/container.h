@@ -39,7 +39,7 @@ void doMount(const linglong::OCI::Config::Mount &, const util::FD &root, const s
 
 void doUmount(const linglong::OCI::Config::Mount &, const util::FD &root);
 
-class Container
+class ContainerBuilder
 {
 public:
     struct Option {
@@ -53,10 +53,10 @@ public:
     };
 
     struct Monitor {
-        Monitor(Container *const container);
+        Monitor(ContainerBuilder *const container);
         void run();
 
-        Container *const container;
+        ContainerBuilder *const container;
         util::Pipe sync;
         pid_t pid;
 
@@ -65,11 +65,11 @@ public:
     };
 
     struct Rootfs {
-        Rootfs(Container *const container);
+        Rootfs(ContainerBuilder *const container);
         void run();
         pid_t pid;
 
-        Container *const container;
+        ContainerBuilder *const container;
         util::Pipe sync;
 
         int unshareFlag;
@@ -80,11 +80,11 @@ public:
     };
 
     struct Init {
-        Init(Container *const container, int socket);
+        Init(ContainerBuilder *const container, int socket);
         void run();
         pid_t pid;
 
-        Container *const container;
+        ContainerBuilder *const container;
         util::Pipe sync;
         int socket;
         std::shared_ptr<util::FD> terminalFD;
@@ -107,7 +107,7 @@ public:
         void exec(util::Socket &sync, pid_t pid);
     };
 
-    Container(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
+    ContainerBuilder(const std::string &containerID, const std::filesystem::path &bundle, const nlohmann::json &configJson,
               const std::filesystem::path &workingPath, int sync, const Option &option = Option());
 
     void Create();
@@ -125,8 +125,8 @@ public:
     std::unique_ptr<Init> init;
 };
 
-struct ContainerRef {
-    ContainerRef(const std::filesystem::path &workingPath);
+struct Container {
+    Container(const std::filesystem::path &workingPath);
     void Start();
     void Kill(const int &sig);
     void Delete();
