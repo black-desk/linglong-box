@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdlib>
 
 #include "ll-box.h"
@@ -73,7 +74,10 @@ int ll_box(int argc, char **argv)
             }
         }
     }
-    spdlog::error("ll-box: unknown command");
+
+    // NOTE: code should never run to here
+    assert(false);
+    std::cerr << fmt::format("ll-box: unknown command");
     return -1;
 }
 
