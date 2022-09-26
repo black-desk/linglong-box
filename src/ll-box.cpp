@@ -11,17 +11,17 @@ namespace linglong::box {
 static const char USAGE_TEMPLATE[] = R"(ll-box: OCI Runtime for linglong.
 
 Usage:
-{}  ll-box -h | --help
+{}
+  ll-box -h | --help
   ll-box -v | --version
 
 Options:
-
   -h --help                   Show this screen.
   -v --version                Show version.
   -i                          Execute command interactively.
-  --console-socket=<address>  Socket address to recive tty fd of process.
-  --extra-fds=<nfds>          Number of extra fds should be passed to process. [default: 0]
-  --box-as-init               Let ll-box be the init(pid=1) in container instead of process.
+  --console-socket=<address>  Socket address to recive tty fd of process [default: ].
+  --extra-fds=<nfds>          Number of extra fds should be passed to process [default: 0].
+  --box-as-init               Let ll-box be the init(pid=1) in container instead of process [default: true].
 )";
 
 int ll_box(int argc, char **argv)
@@ -40,6 +40,8 @@ int ll_box(int argc, char **argv)
             usage += "  " + commandUsage + "\n";
         }
     }
+    usage.pop_back();
+
     usage = fmt::format(USAGE_TEMPLATE, usage);
 
     SPDLOG_TRACE("generated usage:\n{}", usage);
