@@ -41,6 +41,8 @@ Options:
 int ll_box(int argc, char **argv)
 {
     {
+        // Initialize logger
+
         auto syslog = std::make_shared<spdlog::sinks::syslog_sink_st>("ll-box", LOG_PID, LOG_USER, true);
         auto stdlog = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
 
@@ -56,21 +58,25 @@ int ll_box(int argc, char **argv)
         util::init_log_level();
     }
 
-    string usage;
+    map<string, docopt::value> args;
 
-    for (auto &command : commands) {
-        auto commandUsages = get<1>(command);
-        for (auto &commandUsage : commandUsages) {
-            usage += "  " + commandUsage + "\n";
+    {
+        string usage;
+
+        for (auto &command : commands) {
+            auto commandUsages = get<1>(command);
+            for (auto &commandUsage : commandUsages) {
+                usage += "  " + commandUsage + "\n";
+            }
         }
+        usage.pop_back();
+
+        usage = format(USAGE_TEMPLATE, usage);
+
+        SPDLOG_TRACE("generated usage:\n{}", usage);
+
+        args = docopt::docopt(usage, {argv + 1, argv + argc}, true, "ll-box 1.0");
     }
-    usage.pop_back();
-
-    usage = format(USAGE_TEMPLATE, usage);
-
-    SPDLOG_TRACE("generated usage:\n{}", usage);
-
-    map<string, docopt::value> args = docopt::docopt(usage, {argv + 1, argv + argc}, true, "ll-box 1.0");
 
     SPDLOG_TRACE("parsed args:\n{}", [&args]() noexcept -> string {
         sstream buf;

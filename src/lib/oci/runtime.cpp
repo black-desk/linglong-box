@@ -3,8 +3,8 @@
 // #include <filesystem>
 // #include <fstream>
 // #include <stdexcept>
-// #include <sys/socket.h>
-// #include <sys/un.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 // #include <unistd.h>
 
 // #include "fmt/format.h"
@@ -80,6 +80,27 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
         }
 
         auto containerWorkingDir = this->workingDir.at(containerID);
+
+        int ret;
+
+        ret = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+        if (ret < 0) {
+            auto err = fmt::system_error(errno, "failed to create socket(AF_UNIX, SOCK_SEQPACKET, 0)");
+            SPDLOG_ERROR(err.what());
+            throw err;
+        }
+        auto socketFD = FD(ret);
+
+        std::filesystem::path addr = containerWorkingDirPath / "socket";
+        sockaddr_un name = {};
+        name.sun_family = AF_UNIX;
+        strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
+
+        ret = bind(socketFD.__fd, (const sockaddr *)&name, sizeof(name));
+        if (ret) {
+            throw fmt::system_error(errno, "failed to bind socket to \"{}\"", addr);
+        }
+
         // TODO
     }
 
@@ -95,25 +116,6 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
 
     // nlohmann::json configJson;
     // configJsonFile >> configJson;
-
-    // int socketFD = -1;
-
-    // socketFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-    // if (socketFD != -1) {
-    // throw fmt::system_error(errno, "Failed to create socket");
-    // }
-
-    // std::filesystem::path addr = containerWorkingDir / "socket";
-
-    // sockaddr_un name = {};
-    // name.sun_family = AF_UNIX;
-    // strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
-
-    // int ret = -1;
-    // ret = bind(socketFD, (const sockaddr *)&name, sizeof(name));
-    // if (ret == -1) {
-    // throw fmt::system_error(errno, "Failed to bind socket to \"{}\"", addr);
-    // }
 
     // builder.reset(new ContainerBuilder(containerID, bundle, configJson, containerWorkingDir, socketFD,
     // {
