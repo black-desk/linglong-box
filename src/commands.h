@@ -3,9 +3,7 @@
 
 #include <vector>
 
-#define DOCOPT_HEADER_ONLY
 #include "docopt.cpp/docopt.h"
-#undef DOCOPT_HEADER_ONLY
 
 namespace linglong::box {
 

@@ -1,5 +1,5 @@
 #include "ll-box.h"
-#include "cli/commands.h"
+#include "commands.h"
 #include "util/exception.h"
 
 #include "spdlog/spdlog.h"
@@ -11,11 +11,11 @@ namespace linglong::box {
 static const char USAGE_TEMPLATE[] = R"(ll-box: OCI Runtime for linglong.
 
 Usage:
-{}
-  ll-box -h | --help
+{}  ll-box -h | --help
   ll-box -v | --version
 
 Options:
+
   -h --help                   Show this screen.
   -v --version                Show version.
   -i                          Execute command interactively.
@@ -28,7 +28,8 @@ int ll_box(int argc, char **argv)
 {
     {
         auto syslog_logger = spdlog::syslog_logger_mt("syslog", "ll-box", LOG_PID);
-        spdlog::set_default_logger(syslog_logger);
+        spdlog::set_default_logger(std::move(syslog_logger));
+        spdlog::set_level(spdlog::level::trace);
     }
 
     std::string usage;
@@ -48,13 +49,13 @@ int ll_box(int argc, char **argv)
     SPDLOG_TRACE("parsed args:\n{}", [&args]() -> std::string {
         std::stringstream buf;
         for (auto &arg : args) {
-            buf << arg.first << arg.second << std::endl;
+            buf << arg.first << " " << arg.second << std::endl;
         }
         return buf.str();
     }());
 
     for (auto &command : commands) {
-        if (args.find(std::get<0>(command)) != args.end()) {
+        if (args.find(std::get<0>(command))->second.asBool()) {
             try {
                 std::get<2>(command)(args);
                 return 0;
