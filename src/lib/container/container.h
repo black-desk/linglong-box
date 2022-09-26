@@ -7,14 +7,14 @@
 
 #include <nlohmann/json.hpp>
 
-#include "oci/config.h"
-#include "oci/runtime.h"
+#include "lib/oci/config.h"
+#include "lib/oci/runtime.h"
 #include "util/fd.h"
 
 namespace linglong {
 
-void configIDMapping(pid_t target, const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &uidMappings,
-                     const std::optional<std::vector<linglong::OCI::Config::IDMapping>> &gidMappings);
+void configIDMapping(pid_t target, const std::optional<std::vector<linglong::box::OCI::Config::IDMapping>> &uidMappings,
+                     const std::optional<std::vector<linglong::box::OCI::Config::IDMapping>> &gidMappings);
 
 void makeSureParentSurvive(pid_t ppid = 0) noexcept;
 
@@ -34,10 +34,10 @@ struct doMountOption {
     bool fallback;
 };
 
-void doMount(const linglong::OCI::Config::Mount &, const util::FD &root, const std::filesystem::path &rootpath,
+void doMount(const linglong::box::OCI::Config::Mount &, const util::FD &root, const std::filesystem::path &rootpath,
              const doMountOption &opt = {false, true, true});
 
-void doUmount(const linglong::OCI::Config::Mount &, const util::FD &root);
+void doUmount(const linglong::box::OCI::Config::Mount &, const util::FD &root);
 
 class ContainerBuilder
 {

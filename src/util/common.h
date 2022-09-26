@@ -1,7 +1,7 @@
 #ifndef LINGLONG_BOX_SRC_UTIL_COMMON_H
 #define LINGLONG_BOX_SRC_UTIL_COMMON_H
 
-namespace linglong::util {
+namespace linglong::box::util {
 
 class NonCopyable
 {
@@ -19,6 +19,6 @@ public:
     NonMoveable &operator=(NonMoveable &&) = delete;
 };
 
-} // namespace linglong::util
+} // namespace linglong::box::util
 
 #endif

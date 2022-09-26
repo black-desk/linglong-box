@@ -1,1 +1,5 @@
-add_library(llbox STATIC oci/prase.cpp oci/runtime.cpp oci/util.cpp)
+add_library(
+  llbox STATIC
+  # oci/parse.cpp
+  oci/runtime.cpp
+)

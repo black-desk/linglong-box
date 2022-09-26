@@ -8,9 +8,19 @@
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/syslog_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "docopt.cpp/docopt.h"
 
 namespace linglong::box {
+
+using fmt::format;
+using sstream = std::stringstream;
+using std::cerr;
+using std::endl;
+using std::get;
+using std::map;
+using std::move;
+using std::string;
 
 static const char USAGE_TEMPLATE[] = R"(ll-box: OCI Runtime for linglong.
 
@@ -31,45 +41,52 @@ Options:
 int ll_box(int argc, char **argv)
 {
     {
-        auto syslog_logger = spdlog::syslog_logger_mt("syslog", "ll-box", LOG_PID);
-        spdlog::set_default_logger(std::move(syslog_logger));
+        auto syslog = std::make_shared<spdlog::sinks::syslog_sink_st>("ll-box", LOG_PID, LOG_USER, true);
+        auto stdlog = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
+
+        syslog->set_pattern("<%s/%!> %#: %v");
+
+        std::array<spdlog::sink_ptr, 2> sinks = {
+            syslog,
+            stdlog,
+        };
+
+        auto logger = std::make_shared<spdlog::logger>("ll-box", begin(sinks), end(sinks));
+        spdlog::set_default_logger(move(logger));
         util::init_log_level();
     }
 
-    std::string usage;
+    string usage;
 
     for (auto &command : commands) {
-        auto commandUsages = std::get<1>(command);
+        auto commandUsages = get<1>(command);
         for (auto &commandUsage : commandUsages) {
             usage += "  " + commandUsage + "\n";
         }
     }
     usage.pop_back();
 
-    usage = fmt::format(USAGE_TEMPLATE, usage);
+    usage = format(USAGE_TEMPLATE, usage);
 
     SPDLOG_TRACE("generated usage:\n{}", usage);
 
-    std::map<std::string, docopt::value> args = docopt::docopt(usage, {argv + 1, argv + argc}, true, "ll-box 1.0");
+    map<string, docopt::value> args = docopt::docopt(usage, {argv + 1, argv + argc}, true, "ll-box 1.0");
 
-    SPDLOG_TRACE("parsed args:\n{}", [&args]() -> std::string {
-        std::stringstream buf;
+    SPDLOG_TRACE("parsed args:\n{}", [&args]() noexcept -> string {
+        sstream buf;
         for (auto &arg : args) {
-            buf << arg.first << " " << arg.second << std::endl;
+            buf << arg.first << " " << arg.second << endl;
         }
         return buf.str();
     }());
 
     for (auto &command : commands) {
-        if (args.find(std::get<0>(command))->second.asBool()) {
+        if (args.find(get<0>(command))->second.asBool()) {
             try {
-                std::get<2>(command)(args);
+                get<2>(command)(args);
                 return 0;
             } catch (const std::exception &e) {
-                std::stringstream buf;
-                linglong::util::printException(buf, e);
-                std::cerr << fmt::format("ll-box: command \"{}\" execution failed: {}", std::get<0>(command),
-                                         buf.str());
+                cerr << format("ll-box: execution failed:\n{}", util::nestWhat(e));
                 return -1;
             }
         }
@@ -77,7 +94,7 @@ int ll_box(int argc, char **argv)
 
     // NOTE: code should never run to here
     assert(false);
-    std::cerr << fmt::format("ll-box: unknown command");
+    cerr << fmt::format("ll-box: unknown command");
     return -1;
 }
 

@@ -1005,10 +1005,10 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Seccomp::Action,
                                  {Config::Seccomp::Action::Notify, "SCMP_ACT_NOTIFY"},
 #endif
 #ifdef SCMP_ACT_ERRNO
-                                 {Config::Seccomp::Action::Errno, "SCMP_ACT_ERRNO(0)"},
+                                 {Config::Seccomp::Action::Errno, "SCMP_ACT_ERRNO"},
 #endif
 #ifdef SCMP_ACT_TRACE
-                                 {Config::Seccomp::Action::Trace, "SCMP_ACT_TRACE(0)"},
+                                 {Config::Seccomp::Action::Trace, "SCMP_ACT_TRACE"},
 #endif
 #ifdef SCMP_ACT_LOG
                                  {Config::Seccomp::Action::ActionLog, "SCMP_ACT_LOG"},

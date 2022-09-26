@@ -2,23 +2,36 @@
 #define LINGLONG_BOX_SRC_UTIL_EXCEPTION_H
 
 #include <exception>
-#include <ostream>
+#include <sstream>
 
-namespace linglong::util {
+namespace linglong::box::util {
 
-inline void printException(std::ostream &out, const std::exception &e, int depth = 0) noexcept
+inline void doNestWhat(std::ostream &out, const std::exception &e, int depth = 0) noexcept
 {
+    using namespace std;
+
     for (int i = 1; i <= depth; i++) {
         out << "  ";
     }
-    out << e.what() << std::endl;
+    out << e.what() << endl;
     try {
         std::rethrow_if_nested(e);
-    } catch (const std::exception &nested) {
-        printException(out, nested, depth + 1);
+    } catch (const exception &nested) {
+        doNestWhat(out, nested, depth + 1);
     }
 }
 
-} // namespace linglong::util
+inline std::string nestWhat(const std::exception &e) noexcept
+{
+    using namespace std;
+
+    stringstream buf;
+
+    doNestWhat(buf, e);
+
+    return buf.str();
+}
+
+} // namespace linglong::box::util
 
 #endif
