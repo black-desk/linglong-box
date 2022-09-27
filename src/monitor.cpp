@@ -43,7 +43,7 @@ static const char USAGE[] = R"(Usage:
                  --init_write=<init_write_fd>
 )";
 
-int monitor(int argc, char **argv)
+int monitor(int argc, char **argv) noexcept
 {
     util::init_logger("ll-box-monitor");
 

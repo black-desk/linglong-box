@@ -2,7 +2,7 @@
 
 namespace linglong::box {
 
-int rootfs_preparer(int argc, char **argv)
+int rootfs_preparer(int argc, char **argv) noexcept
 {
 }
 

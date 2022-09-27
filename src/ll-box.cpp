@@ -33,7 +33,7 @@ Options:
   --box-as-init               Let ll-box be the init(pid=1) in container instead of process [default: true].
 )";
 
-int ll_box(int argc, char **argv)
+int ll_box(int argc, char **argv) noexcept
 {
     util::init_logger("ll-box");
 

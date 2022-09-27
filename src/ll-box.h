@@ -2,7 +2,7 @@
 #define LINGLONG_BOX_SRC_LL_BOX_H
 
 namespace linglong::box {
-int ll_box(int argc, char **argv);
+int ll_box(int argc, char **argv) noexcept;
 }
 
 #endif

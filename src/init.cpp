@@ -16,7 +16,7 @@
 
 namespace linglong::box {
 // int init(int listenFD, int startFD, int appPID)
-int init(int argc, char **argv)
+int init(int argc, char **argv) noexcept
 {
     // try {
     // linglong::util::FD _(listenFD);
