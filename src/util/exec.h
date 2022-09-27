@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <vector>
 #include "util/string.h"
+#include "util/fmt.h"
 
 namespace linglong::box::util {
 
@@ -51,7 +52,6 @@ inline pid_t exec(const std::filesystem::path &exe, const std::vector<std::strin
                 exit(-1);
             }
         }
-
         try {
             ::execve(exe.c_str(), (char **)argv.get(), env.size() == 0 ? environ : (char **)environs.get());
             failed = true;

@@ -37,7 +37,7 @@ int ll_box(int argc, char **argv)
 {
     util::init_logger("ll-box");
 
-    SPDLOG_TRACE("ll-box started");
+    SPDLOG_DEBUG("ll-box started");
 
     map<string, docopt::value> args;
 

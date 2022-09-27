@@ -13,10 +13,12 @@
 
 // #include <util/fd.h>
 
+#include <sys/prctl.h>
 #include <memory>
 
 #include "docopt.cpp/docopt.h"
 
+#include "util/exec.h"
 #include "util/log.h"
 #include "util/exception.h"
 
@@ -45,7 +47,7 @@ int monitor(int argc, char **argv)
 {
     util::init_logger("ll-box-monitor");
 
-    SPDLOG_TRACE("ll-box-monitor started");
+    SPDLOG_DEBUG("ll-box-monitor started");
 
     map<string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, false);
 
@@ -59,7 +61,25 @@ int monitor(int argc, char **argv)
         return str;
     }());
 
-    return 0;
+    try {
+        // adopt orphaned process
+        {
+            auto ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
+            if (ret) {
+                auto err = fmt::system_error(errno, "failed to set child subreaper to 1");
+                SPDLOG_WARN(err.what());
+                SPDLOG_WARN("MIGHT cannot release rootfs when container deleted");
+            }
+        }
+
+        return 0;
+    } catch (const std::exception &e) {
+        std::cerr << fmt::format("ll-box-monitor: failed:\n{}", util::nestWhat(e));
+    } catch (...) {
+        std::cerr << fmt::format("ll-box-monitor: failed");
+        return -1;
+    }
+
     // sigset_t mask;
     // if (sigemptyset(&mask)) {
     // throw fmt::system_error(errno, "Failed to call sigemptyset");

@@ -115,7 +115,7 @@ pid_t Builder::startMonitor(util::FD config, util::FD socket, util::WriteableFD 
                             util::ReadableFD monitorRead, util::WriteableFD monitorWrite, util::ReadableFD rootfsRead,
                             util::WriteableFD rootfsWrite, util::ReadableFD initRead, util::WriteableFD initWrite)
 {
-    return util::exec(std::filesystem::read_symlink("/proc/self/exe"),
+    return util::exec("/proc/self/exe",
                       {
                           "ll-box-monitor",
                           fmt::format("--config={}", config.__fd),
