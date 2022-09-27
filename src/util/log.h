@@ -31,21 +31,19 @@ inline void init_logger(const std::string &name)
     spdlog::set_default_logger(move(logger));
 
     // Initialize logger level
-    using namespace std::literals::string_view_literals;
-    static constexpr std::array<std::pair<std::string_view, spdlog::level::level_enum>,
-                                spdlog::level::level_enum::n_levels>
-        logLevels {{
-            {"trace"sv, spdlog::level::trace},
-            {"debug"sv, spdlog::level::debug},
-            {"info"sv, spdlog::level::info},
-            {"warn"sv, spdlog::level::warn},
-            {"err"sv, spdlog::level::err},
-            {"critical"sv, spdlog::level::critical},
-            {"off"sv, spdlog::level::off},
-        }};
-    static constexpr auto map = Map<std::string_view, spdlog::level::level_enum, logLevels.size()> {{logLevels}};
 
     const char *level = std::getenv("LINGLONG_BOX_LOG_LEVEL");
+
+    static constexpr auto map =
+        ConstexprMap<std::string_view, spdlog::level::level_enum, spdlog::level::level_enum::n_levels> {{{
+            {"trace", spdlog::level::trace},
+            {"debug", spdlog::level::debug},
+            {"info", spdlog::level::info},
+            {"warn", spdlog::level::warn},
+            {"err", spdlog::level::err},
+            {"critical", spdlog::level::critical},
+            {"off", spdlog::level::off},
+        }}};
 
     try {
         spdlog::set_level(map.at(level ? level : "off"));

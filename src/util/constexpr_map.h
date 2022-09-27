@@ -8,7 +8,7 @@
 namespace linglong::box::util {
 
 template<typename Key, typename Value, std::size_t Size>
-struct Map {
+struct ConstexprMap {
     std::array<std::pair<Key, Value>, Size> data;
 
     [[nodiscard]] constexpr Value at(const Key &key) const
