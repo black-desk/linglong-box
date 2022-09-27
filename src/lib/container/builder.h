@@ -22,7 +22,7 @@ struct Builder {
     util::FD socket;
     OCI::Config config;
 
-    void startMonitor(util::FD config, util::FD socket, util::PipeWriteEnd runtimeWrite, util::PipeReadEnd monitorRead,
+    pid_t startMonitor(util::FD config, util::FD socket, util::PipeWriteEnd runtimeWrite, util::PipeReadEnd monitorRead,
                       util::PipeWriteEnd monitorWrite, util::PipeReadEnd rootfsRead, util::PipeWriteEnd rootfsWrite,
                       util::PipeReadEnd initRead, util::PipeWriteEnd initWrite);
 };

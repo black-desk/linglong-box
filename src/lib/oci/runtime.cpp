@@ -135,6 +135,7 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
                                                  std::move(*containerWorkingDir.release()), std::move(socketFD)));
 
             this->updateState(containerID, builder->state);
+            SPDLOG_INFO("container \"{}\" creating", containerID);
         }
 
         builder->Create();
@@ -142,6 +143,7 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
         {
             auto guard = FLockGuard(this->workingDir);
             this->updateState(containerID, builder->state);
+            SPDLOG_INFO("container \"{}\" created", containerID);
         }
 
         SPDLOG_TRACE("request monitor/init to run \"prestart/createRuntime/createContainer\"");
@@ -155,8 +157,8 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
         *builder->pipe >> msg;
         SPDLOG_DEBUG("done");
 
-        if (msg != 0) {
-            auto err = fmt::system_error(msg, "failed to run \"prestart/createRuntime/createContainer\" hooks");
+        if (msg < 0) {
+            auto err = fmt::system_error(-msg, "failed to run \"prestart/createRuntime/createContainer\" hooks");
             SPDLOG_ERROR(err.what());
             throw err;
         }
