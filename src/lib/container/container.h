@@ -9,11 +9,13 @@
 namespace linglong::box::container {
 
 struct Container : public util::NonCopyable {
-    State state;
-    util::FD __bundle;
-    OCI::Config __config;
+    std::string __name;
+    State __state;
+    std::optional<util::FD> __bundle;
+    std::optional<OCI::Config> __config;
 
-    Container(nlohmann::json config, util::FD pathToBundle);
+    Container(const std::string& name);
+    Container(const std::string& name, nlohmann::json config, util::FD pathToBundle);
 };
 
 } // namespace linglong::box::container

@@ -45,7 +45,12 @@ inline void writeWithRetry(const int fd, const void *const buf, const std::size_
     return;
 }
 
-struct PipeReadEnd : private FD {
+struct PipeReadEnd : public FD {
+    PipeReadEnd(FD &&that)
+        : FD(std::move(that))
+    {
+    }
+
     PipeReadEnd(int fd)
         : FD(fd)
     {
@@ -58,9 +63,24 @@ struct PipeReadEnd : private FD {
         SPDLOG_TRACE("done, get int={}", x);
         return *this;
     }
+
+    PipeReadEnd &operator>>(std::string &str)
+    {
+        SPDLOG_TRACE("read string from fd={}", this->__fd);
+        int len;
+        *this >> len;
+        str.resize(len);
+        readWithRetry(this->__fd, &str[0], len);
+        return *this;
+    }
 };
 
 struct PipeWriteEnd : public FD {
+    PipeWriteEnd(FD &&that)
+        : FD(std::move(that))
+    {
+    }
+
     PipeWriteEnd(int fd)
         : FD(fd)
     {
@@ -70,6 +90,16 @@ struct PipeWriteEnd : public FD {
     {
         SPDLOG_TRACE("write int={} to fd={}", x, this->__fd);
         writeWithRetry(this->__fd, &x, sizeof(int));
+        SPDLOG_TRACE("done");
+        return *this;
+    }
+
+    PipeWriteEnd &operator<<(const std::string &str)
+    {
+        SPDLOG_TRACE("write string={} to fd={}", str, this->__fd);
+        auto len = str.length();
+        *this << len;
+        writeWithRetry(this->__fd, str.c_str(), len);
         SPDLOG_TRACE("done");
         return *this;
     }

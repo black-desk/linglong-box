@@ -76,7 +76,18 @@ struct FD : public NonCopyable {
         if (ret < 0) {
             auto err = fmt::system_error(errno, "failed to open \"{}\" with flag={} at \"{}\" (fd={})", path, flag,
                                          this->path(), this->__fd);
-            spdlog::error(err.what());
+            SPDLOG_ERROR(err.what());
+            throw err;
+        }
+        return FD(ret);
+    }
+
+    FD dup() const
+    {
+        auto ret = ::dup(this->__fd);
+        if (ret < 0) {
+            auto err = fmt::system_error(errno, "failed to dup fd={}", this->__fd);
+            SPDLOG_ERROR(err.what());
             throw err;
         }
         return FD(ret);
@@ -97,7 +108,6 @@ private:
         }
     }
 };
-
 
 // struct Message {
 // nlohmann::json raw;

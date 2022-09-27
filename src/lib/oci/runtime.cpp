@@ -134,14 +134,14 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
             builder.reset(new container::Builder(containerID, std::move(pathToBundle), std::move(configJson),
                                                  std::move(*containerWorkingDir.release()), std::move(socketFD)));
 
-            this->updateState(containerID, builder->container.state);
+            this->updateState(containerID, builder->state);
         }
 
         builder->Create();
 
         {
             auto guard = FLockGuard(this->workingDir);
-            this->updateState(containerID, builder->container.state);
+            this->updateState(containerID, builder->state);
         }
 
         SPDLOG_TRACE("request monitor/init to run \"prestart/createRuntime/createContainer\"");
