@@ -43,7 +43,7 @@ public:
 
 private:
     util::FD workingDir;
-    void updateState(const std::filesystem::path &containerWorkingDir, const struct State &state);
+    void updateState(const std::string &containerID, const struct State &state);
     void proxy(int in, int out, int notify, int target);
 };
 

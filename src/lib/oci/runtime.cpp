@@ -1,10 +1,7 @@
 // #include <csignal>
 // #include <fcntl.h>
 // #include <filesystem>
-// #include <fstream>
 // #include <stdexcept>
-#include <sys/socket.h>
-#include <sys/un.h>
 // #include <unistd.h>
 
 // #include "fmt/format.h"
@@ -15,15 +12,20 @@
 // #include "util/lock.h"
 // #include "util/epoll.h"
 
+#include <fstream>
 #include <filesystem>
 #include <string>
 #include <system_error>
+
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include "fmt/fmt.h"
 #include "spdlog/spdlog.h"
 
 #include "runtime.h"
+#include "container/builder.h"
 #include "util/string.h"
 #include "util/fmt.h"
 #include "util/flock.h"
@@ -57,142 +59,126 @@ Runtime::Runtime()
 
 void Runtime::Create(const std::string &containerID, FD pathToBundle)
 {
-    SPDLOG_TRACE("linglong::box::OCI::Runtime::Create called");
-    SPDLOG_TRACE("[containerID=\"{}\", pathToBundle=\"{}\"]", containerID, pathToBundle.path());
+    SPDLOG_DEBUG("linglong::box::OCI::Runtime::Create called");
+    SPDLOG_DEBUG("[containerID=\"{}\", pathToBundle=\"{}\"]", containerID, pathToBundle.path());
 
     using linglong::box::util::FLockGuard;
 
-    {
-        auto guard = FLockGuard(this->workingDir);
+    std::unique_ptr<container::Builder> builder;
+    std::unique_ptr<FD> containerWorkingDir;
 
-        auto containerWorkingDirPath = this->workingDir.path() / containerID;
+    try {
+        { // init builder
+            auto guard = FLockGuard(this->workingDir);
 
-        if (std::filesystem::exists(containerWorkingDirPath)) {
-            auto err = fmt::system_error(EINVAL, "container \"{}\" existed", containerID);
-            SPDLOG_ERROR(err.what());
-            throw err;
-        }
+            auto containerWorkingDirPath = this->workingDir.path() / containerID;
 
-        try {
-            std::filesystem::create_directory(containerWorkingDirPath);
-        } catch (...) {
-            auto err = fmt::system_error(errno, "failed to create container working directory \"{}\"",
-                                         containerWorkingDirPath);
-            SPDLOG_ERROR(err.what());
-            std::throw_with_nested(err);
-        }
-
-        auto containerWorkingDir = this->workingDir.at(containerID);
-
-        int ret;
-
-        ret = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-        if (ret < 0) {
-            auto err = fmt::system_error(errno, "failed to create socket(AF_UNIX, SOCK_SEQPACKET, 0)");
-            SPDLOG_ERROR(err.what());
-            throw err;
-        }
-
-        auto socketFD = FD(ret);
-
-        {
-            std::filesystem::path addr = containerWorkingDirPath / "socket";
-            sockaddr_un name = {};
-            name.sun_family = AF_UNIX;
-            strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
-
-            ret = bind(socketFD.__fd, (const sockaddr *)&name, sizeof(name));
-            if (ret) {
-                auto err = fmt::system_error(errno, "failed to bind socket to \"{}\"", addr);
-                SPDLOG_ERROR(err);
+            if (std::filesystem::exists(containerWorkingDirPath)) {
+                auto err = fmt::system_error(EINVAL, "container \"{}\" existed", containerID);
+                SPDLOG_ERROR(err.what());
                 throw err;
             }
-        }
 
-        std::unique_ptr<Builder> builder;
+            try {
+                std::filesystem::create_directory(containerWorkingDirPath);
+            } catch (...) {
+                auto err = fmt::system_error(errno, "failed to create container working directory \"{}\"",
+                                             containerWorkingDirPath);
+                SPDLOG_ERROR(err.what());
+                std::throw_with_nested(err);
+            }
 
-        {
-            std::ifstream configJsonFile;
-            configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+            containerWorkingDir.reset(new FD(this->workingDir.at(containerID)));
 
-            configJsonFile.open(bundle / "config.json");
+            int ret;
+
+            ret = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+            if (ret < 0) {
+                auto err = fmt::system_error(errno, "failed to create socket(AF_UNIX, SOCK_SEQPACKET, 0)");
+                SPDLOG_ERROR(err.what());
+                throw err;
+            }
+
+            auto socketFD = FD(ret);
+
+            {
+                std::filesystem::path addr = containerWorkingDirPath / "socket";
+                sockaddr_un name = {};
+                name.sun_family = AF_UNIX;
+                strncpy(name.sun_path, addr.c_str(), sizeof(name.sun_path) - 1);
+
+                ret = bind(socketFD.__fd, (const sockaddr *)&name, sizeof(name));
+                if (ret) {
+                    auto err = fmt::system_error(errno, "failed to bind socket to \"{}\"", addr);
+                    SPDLOG_ERROR(err);
+                    throw err;
+                }
+            }
 
             nlohmann::json configJson;
-            configJsonFile >> configJson;
 
-            builder.reset(new ContainerBuilder(containerID, bundle, configJson, containerWorkingDir, socketFD,
-                                               {
-                                                   false,
-                                                   false,
-                                                   false,
-                                                   false,
-                                                   (1024 * 1024),
-                                                   true,
-                                                   true,
-                                               }));
+            {
+                std::ifstream configJsonFile;
+                configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
-            this->updateState(containerWorkingDir, builder.container->state);
+                configJsonFile.open(pathToBundle.procPath() / "config.json");
+
+                configJsonFile >> configJson;
+            }
+
+            builder.reset(new container::Builder(containerID, std::move(pathToBundle), std::move(configJson),
+                                                 std::move(*containerWorkingDir.release()), std::move(socketFD)));
+
+            this->updateState(containerID, builder->container.state);
         }
 
-        // TODO
+        builder->Create();
+
+        {
+            auto guard = FLockGuard(this->workingDir);
+            this->updateState(containerID, builder->container.state);
+        }
+
+        SPDLOG_TRACE("request monitor/init to run \"prestart/createRuntime/createContainer\"");
+        *builder->monitorPipe << 0;
+        SPDLOG_TRACE("done");
+
+        int msg = -1;
+        SPDLOG_DEBUG("waiting monitor to report \"prestart/createRuntime/createContainer\" hooks result");
+        *builder->pipe >> msg;
+        SPDLOG_DEBUG("done");
+
+        if (msg != 0) {
+            auto err = fmt::system_error(msg, "failed to run \"prestart/createRuntime/createContainer\" hooks");
+            SPDLOG_ERROR(err.what());
+            throw err;
+        }
+
+    } catch (...) {
+        auto err = fmt::system_error(errno, "failed to create container (name=\"{}\")", containerID);
+        SPDLOG_ERROR(err.what());
+        try {
+            SPDLOG_INFO("doing clean up");
+            auto guard = FLockGuard(this->workingDir);
+            if (containerWorkingDir) {
+                auto containerWorkingPath = containerWorkingDir->path();
+                SPDLOG_TRACE("removing \"{}\"", containerWorkingPath);
+                std::filesystem::remove_all(containerWorkingPath);
+            }
+            SPDLOG_INFO("done");
+        } catch (const std::exception &e) {
+            SPDLOG_ERROR("during clean up, new exception occur: {}", e.what());
+        } catch (...) {
+            SPDLOG_CRITICAL("during clean up, unknown exception occur");
+        }
+        std::throw_with_nested(err);
     }
-
-    // try {
-
-    // std::unique_ptr<ContainerBuilder> builder;
-
-    // {
-    // std::ifstream configJsonFile;
-    // configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    // configJsonFile.open(bundle / "config.json");
-
-    // nlohmann::json configJson;
-    // configJsonFile >> configJson;
-
-    // builder.reset(new ContainerBuilder(containerID, bundle, configJson, containerWorkingDir, socketFD,
-    // {
-    // false,
-    // false,
-    // false,
-    // false,
-    // (1024 * 1024),
-    // true,
-    // true,
-    // }));
-
-    // this->updateState(containerWorkingDir, builder.container->state);
-    // }
-
-    // builder->Create();
-
-    // {
-    // auto guard = FlockGuard(this->workingDir);
-    // this->updateState(containerWorkingDir, builder.container->state);
-    // }
-
-    // builder->monitorSync << 0; // request run "createRuntime"
-
-    // int msg = 0;
-    // SPDLOG_DEBUG("Waiting monitor to report hooks result");
-    // builder->sync >> msg;
-    // SPDLOG_DEBUG("Done");
-
-    // if (msg != 0) {
-    // throw std::runtime_error("Error during waitting hooks finish");
-    // }
-    // } catch (const std::runtime_error &e) {
-    // auto guard = FlockGuard(this->workingDir);
-    // std::filesystem::remove_all(containerWorkingDir);
-    // std::throw_with_nested(std::runtime_error(
-    // fmt::format("Failed to create container (name=\"{}\", bundle=\"{}\")", containerID, bundle)));
-    // }
 }
 
-void Runtime::updateState(const std::filesystem::path &containerWorkingDir, const struct State &state)
+void Runtime::updateState(const std::string &containerID, const struct State &state)
 {
     SPDLOG_TRACE("linglong::box::OCI::Runtime::updateState called ");
-    SPDLOG_TRACE("[containerWorkingDir=\"{}\", state=\"{}\"]", containerWorkingDir, json(state).dump());
+    SPDLOG_TRACE("[containerID=\"{}\", state=\"{}\"]", containerID, json(state).dump());
 
     // auto stateJsonPath = containerWorkingDir / "state.json";
     // std::ofstream stateJsonFile(stateJsonPath);

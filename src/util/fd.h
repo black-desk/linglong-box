@@ -61,13 +61,15 @@ struct FD : public NonCopyable {
 
     ~FD() { this->close(); }
 
+    std::filesystem::path procPath() const { return fmt::format("/proc/self/fd/{}", this->__fd); }
+
     std::filesystem::path path() const
     {
-        auto ret = std::filesystem::read_symlink(fmt::format("/proc/self/fd/{}", __fd));
+        auto ret = std::filesystem::read_symlink(this->procPath());
         return std::move(ret);
     }
 
-    FD at(const std::filesystem::path &path, int flag = O_PATH, int mode = S_IRUSR | S_IWUSR)
+    FD at(const std::filesystem::path &path, int flag = O_PATH, int mode = S_IRUSR | S_IWUSR) const
     {
         flag |= O_CLOEXEC;
         auto ret = ::openat(this->__fd, path.c_str(), flag, mode);
@@ -96,25 +98,6 @@ private:
     }
 };
 
-// struct PipeReadEnd : public FD {
-// PipeReadEnd(int);
-// PipeReadEnd &operator>>(int &x);
-// };
-
-// struct PipeWriteEnd : public FD {
-// PipeWriteEnd(int);
-// PipeWriteEnd &operator<<(const int &x);
-// };
-
-// struct Pipe {
-// Pipe();
-// std::unique_ptr<PipeReadEnd> read;
-// std::unique_ptr<PipeWriteEnd> write;
-// PipeReadEnd &operator>>(int &x);
-// PipeWriteEnd &operator<<(const int &x);
-// };
-
-// std::pair<std::shared_ptr<PipeReadEnd>, std::shared_ptr<PipeWriteEnd>> pipe();
 
 // struct Message {
 // nlohmann::json raw;
