@@ -48,10 +48,10 @@ struct Config {
 
         struct Parsed {
             std::vector<std::string> data;
-            uint32_t flags = 0;
+            uint32_t flags;
         };
 
-        std::unique_ptr<Parsed> parsed;
+        std::optional<Parsed> parsed;
 
         void parse(std::filesystem::path bundlePath);
     };
@@ -644,6 +644,7 @@ struct Config {
 
     void parse(const std::filesystem::path &bundlePath);
 };
+
 #define JSON_DISABLE_ENUM_SERIALIZATION 1
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Root, path, readonly);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::IDMapping, containerID, hostID, size);
@@ -657,8 +658,19 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Config::Mount::Type, {
                                                       {Config::Mount::Type::Cgroup, "cgroup"},
                                                       {Config::Mount::Type::Cgroup2, "cgroup2"},
                                                   });
+inline void to_json(nlohmann ::json &nlohmann_json_j, const Config ::Mount ::Parsed &nlohmann_json_t)
+{
+    nlohmann_json_j["data"] = nlohmann_json_t.data;
+    nlohmann_json_j["flags"] = nlohmann_json_t.flags;
+}
+inline void from_json(const nlohmann ::json &nlohmann_json_j, Config ::Mount ::Parsed &nlohmann_json_t)
+{
+    Config ::Mount ::Parsed nlohmann_json_default_obj;
+    nlohmann_json_t.data = nlohmann_json_j.value("data", nlohmann_json_default_obj.data);
+    nlohmann_json_t.flags = nlohmann_json_j.value("flags", nlohmann_json_default_obj.flags);
+};
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config::Mount, type, uidMappings, gidMappings, destination, source,
-                                                options);
+                                                options, parsed);
 
 NLOHMANN_JSON_SERIALIZE_ENUM(Config::Process::Rlimit::Type,
                              {
@@ -1032,5 +1044,5 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Config, ociVersion, root, mounts
                                                 namespaces, uidMappings, gidMappings, devices, cgroupsPath, resources,
                                                 unified, sysctl, seccomp, rootfsPropagation, maskedPaths, readonlyPaths,
                                                 mountLabel, personality);
-} // namespace linglong::OCI
+} // namespace linglong::box::OCI
 #endif

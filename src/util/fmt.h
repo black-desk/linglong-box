@@ -2,7 +2,8 @@
 #define LINGLONG_BOX_SRC_UTIL_FMT_H_
 
 #include <filesystem>
-#include "fmt/format.h"
+
+#include "fmt/fmt.h"
 
 namespace fmt {
 

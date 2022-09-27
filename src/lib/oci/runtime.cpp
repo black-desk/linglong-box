@@ -110,20 +110,25 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
                 ret = bind(socketFD.__fd, (const sockaddr *)&name, sizeof(name));
                 if (ret) {
                     auto err = fmt::system_error(errno, "failed to bind socket to \"{}\"", addr);
-                    SPDLOG_ERROR(err);
+                    SPDLOG_ERROR(err.what());
                     throw err;
                 }
             }
 
             nlohmann::json configJson;
 
-            {
+            try {
                 std::ifstream configJsonFile;
                 configJsonFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
                 configJsonFile.open(pathToBundle.procPath() / "config.json");
 
                 configJsonFile >> configJson;
+            } catch (...) {
+                auto err =
+                    fmt::system_error(errno, "failed to open config.json at \"{}/config.json\"", pathToBundle.path());
+                SPDLOG_ERROR(err.what());
+                std::throw_with_nested(err);
             }
 
             builder.reset(new container::Builder(containerID, std::move(pathToBundle), std::move(configJson),
@@ -140,11 +145,13 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
         }
 
         SPDLOG_TRACE("request monitor/init to run \"prestart/createRuntime/createContainer\"");
+        assert(builder->monitorPipe);
         *builder->monitorPipe << 0;
         SPDLOG_TRACE("done");
 
         int msg = -1;
         SPDLOG_DEBUG("waiting monitor to report \"prestart/createRuntime/createContainer\" hooks result");
+        assert(builder->pipe);
         *builder->pipe >> msg;
         SPDLOG_DEBUG("done");
 

@@ -2,29 +2,29 @@
 #include <stdexcept>
 #include <set>
 
-#include <fmt/core.h>
-#include <spdlog/spdlog.h>
+#include "util/fmt.h"
+#include "spdlog/spdlog.h"
 
 #include <sys/mount.h>
 
 #include "config.h"
 
-#include "util/exception.h"
+// #include "util/exception.h"
 // #include "util/oci_runtime.h"
 #include "util/semver2.h"
 
-using linglong::util::SemVer;
+using linglong::box::util::SemVer;
 
 static const SemVer llboxOciSemVersion("1.0.2");
 
-namespace linglong::OCI {
+namespace linglong::box::OCI {
 
 void Config::parse(const std::filesystem::path &bundlePath)
 {
     // FIXME: should parse each member in their sturct
 
     {
-        util::SemVer ociSemVersion(this->ociVersion);
+        SemVer ociSemVersion(this->ociVersion);
 
         if (!ociSemVersion.isCompatibleWith(llboxOciSemVersion)) {
             spdlog::warn("OCI Version of config.json \"{}\" not compatible with ll-box", ociVersion);
@@ -175,7 +175,7 @@ void Config::parse(const std::filesystem::path &bundlePath)
     }
 }
 
-void linglong::OCI::Config::Root::parse(std::filesystem::path bundlePath)
+void OCI::Config::Root::parse(std::filesystem::path bundlePath)
 {
     this->readonly = this->readonly.value_or(false);
     if (this->path.is_relative()) {
@@ -186,7 +186,7 @@ void linglong::OCI::Config::Root::parse(std::filesystem::path bundlePath)
     }
 }
 
-void linglong::OCI::Config::Mount::parse(std::filesystem::path bundlePath)
+void OCI::Config::Mount::parse(std::filesystem::path bundlePath)
 {
     // NOTE: Maybe we should just use libmount.
 
@@ -306,17 +306,17 @@ void linglong::OCI::Config::Mount::parse(std::filesystem::path bundlePath)
 #endif
     };
 
-    for (auto &option : this->options.value_or(std::vector<std::string>())) {
-        auto it = mountOptionFlags.find(option);
-        if (it != mountOptionFlags.end()) {
-            if (it->second.clear) {
-                this->parsed->flags &= ~it->second.flag;
-            } else
-                this->parsed->flags |= it->second.flag;
-        } else {
-            this->parsed->data.push_back(option);
-        }
-    }
+    // for (auto &option : this->options.value_or(std::vector<std::string>())) {
+        // auto it = mountOptionFlags.find(option);
+        // if (it != mountOptionFlags.end()) {
+            // if (it->second.clear) {
+                // this->parsed->flags &= ~it->second.flag;
+            // } else
+                // this->parsed->flags |= it->second.flag;
+        // } else {
+            // this->parsed->data.push_back(option);
+        // }
+    // }
 
     if (!this->destination.is_absolute()) {
         throw std::runtime_error(fmt::format("mount destination \"{}\" is not a absolute path.", this->destination));
@@ -401,8 +401,8 @@ void Config::Namespace::parse(const std::filesystem::path &bundlePath)
 {
     if (this->path.has_value() && !this->path->is_absolute()) {
         throw std::runtime_error(
-            fmt::format("config.json is not valid: namespace path \"{}\" is not a absolute path.", this->path));
+            fmt::format("config.json is not valid: namespace path \"{}\" is not a absolute path.", this->path.value()));
     }
 }
 
-} // namespace linglong::OCI
+} // namespace linglong::box::OCI
