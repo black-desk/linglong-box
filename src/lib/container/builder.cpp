@@ -7,17 +7,19 @@ namespace linglong::box::container {
 
 using std::move;
 
-Builder::Builder(const std::string &containerID, util::FD pathToBundle, nlohmann::json configJson,
-                 util::FD containerWorkingDir, util::FD socketFD)
+Builder::Builder(const std::string &containerID, util::FD pathToBundle,
+                 nlohmann::json configJson, util::FD containerWorkingDir,
+                 util::FD socketFD)
     : socket(move(socketFD))
     , config(configJson.get<OCI::Config>())
     , workingDir(move(containerWorkingDir))
 {
     auto bundle = pathToBundle.path();
     SPDLOG_TRACE("linglong::box::container::Builder::Builder called");
-    SPDLOG_TRACE("[containerID=\"{}\", pathToBundle=\"{}\" (fd={}), containerWorkingDir=\"{}\" (fd={}), socketFD={}]",
-                 containerID, bundle, pathToBundle.__fd, workingDir.value().path(), workingDir.value().__fd,
-                 socket.__fd);
+    SPDLOG_TRACE(
+        "[containerID=\"{}\", pathToBundle=\"{}\" (fd={}), containerWorkingDir=\"{}\" (fd={}), socketFD={}]",
+        containerID, bundle, pathToBundle.__fd, workingDir.value().path(),
+        workingDir.value().__fd, socket.__fd);
     SPDLOG_TRACE("oci config.json:\n{}", configJson.dump(4));
 
     config.parse(pathToBundle.path());
@@ -47,7 +49,8 @@ void Builder::Create()
 #undef CREATE_PIPE
             auto ret = memfd_create("config.json", 0);
             if (ret == -1) {
-                auto err = fmt::system_error(errno, "failed to create memfd for parsed config.json");
+                auto err = fmt::system_error(
+                    errno, "failed to create memfd for parsed config.json");
                 SPDLOG_ERROR(err.what());
                 throw err;
             }
@@ -59,9 +62,12 @@ void Builder::Create()
             this->initPipe = initWrite.dup();
             this->rootfsPipe = rootfsWrite.dup();
 
-            monitorPid = this->startMonitor(std::move(configFD), std::move(this->socket), std::move(runtimeWrite),
-                                            std::move(monitorRead), std::move(monitorWrite), std::move(rootfsRead),
-                                            std::move(rootfsWrite), std::move(initRead), std::move(initWrite));
+            monitorPid = this->startMonitor(
+                std::move(configFD), std::move(this->socket),
+                std::move(runtimeWrite), std::move(monitorRead),
+                std::move(monitorWrite), std::move(rootfsRead),
+                std::move(rootfsWrite), std::move(initRead),
+                std::move(initWrite));
         }
 
         SPDLOG_DEBUG("pid of monitor={}", monitorPid);
@@ -80,19 +86,23 @@ void Builder::Create()
 
 void Builder::AfterCreated()
 {
-    SPDLOG_TRACE("request monitor/init to run \"prestart/createRuntime/createContainer\"");
+    SPDLOG_TRACE(
+        "request monitor/init to run \"prestart/createRuntime/createContainer\"");
     assert(this->monitorPipe.has_value());
     this->monitorPipe.value() << 0;
     SPDLOG_TRACE("done");
 
     int msg = -1;
-    SPDLOG_DEBUG("waiting monitor to report \"prestart/createRuntime/createContainer\" hooks result");
+    SPDLOG_DEBUG(
+        "waiting monitor to report \"prestart/createRuntime/createContainer\" hooks result");
     assert(this->pipe.has_value());
     this->pipe.value() >> msg;
     SPDLOG_DEBUG("done");
 
     if (msg < 0) {
-        auto err = fmt::system_error(-msg, "failed to run \"prestart/createRuntime/createContainer\" hooks");
+        auto err = fmt::system_error(
+            -msg,
+            "failed to run \"prestart/createRuntime/createContainer\" hooks");
         SPDLOG_ERROR(err.what());
         throw err;
     }
@@ -111,9 +121,11 @@ Builder::~Builder()
     }
 }
 
-pid_t Builder::startMonitor(util::FD config, util::FD socket, util::WriteableFD runtimeWrite,
-                            util::ReadableFD monitorRead, util::WriteableFD monitorWrite, util::ReadableFD rootfsRead,
-                            util::WriteableFD rootfsWrite, util::ReadableFD initRead, util::WriteableFD initWrite)
+pid_t Builder::startMonitor(
+    util::FD config, util::FD socket, util::WriteableFD runtimeWrite,
+    util::ReadableFD monitorRead, util::WriteableFD monitorWrite,
+    util::ReadableFD rootfsRead, util::WriteableFD rootfsWrite,
+    util::ReadableFD initRead, util::WriteableFD initWrite)
 {
     return util::exec("/proc/self/exe",
                       {

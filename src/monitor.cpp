@@ -15,9 +15,10 @@
 
 #include <sys/prctl.h>
 #include <memory>
+#include <sys/signal.h>
 
 #include "docopt.cpp/docopt.h"
-
+#include "util/common.h"
 #include "util/exec.h"
 #include "util/log.h"
 #include "util/exception.h"
@@ -49,7 +50,8 @@ int monitor(int argc, char **argv) noexcept
 
     SPDLOG_DEBUG("ll-box-monitor started");
 
-    map<string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, false);
+    map<string, docopt::value> args =
+        docopt::docopt(USAGE, {argv + 1, argv + argc}, false);
 
     SPDLOG_TRACE("parsed args:\n{}", [&args]() noexcept -> string {
         sstream buf;
@@ -62,19 +64,30 @@ int monitor(int argc, char **argv) noexcept
     }());
 
     try {
+
         // adopt orphaned process
         {
             auto ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
             if (ret) {
-                auto err = fmt::system_error(errno, "failed to set child subreaper to 1");
+                auto err = fmt::system_error(
+                    errno, "failed to set child subreaper to 1");
                 SPDLOG_WARN(err.what());
-                SPDLOG_WARN("MIGHT cannot release rootfs when container deleted");
+                SPDLOG_WARN(
+                    "MIGHT cannot release rootfs when container deleted");
             }
         }
 
+        // NOTE:
+        // ll-box-monitor just a subreaper for rootfs-preparer processes
+        // and oci-runtime hook, we don't care about how child processes die.
+        signal(SIGCHLD, SIG_IGN);
+
+
+
         return 0;
     } catch (const std::exception &e) {
-        std::cerr << fmt::format("ll-box-monitor: failed:\n{}", util::nestWhat(e));
+        std::cerr << fmt::format("ll-box-monitor: failed:\n{}",
+                                 util::nestWhat(e));
     } catch (...) {
         std::cerr << fmt::format("ll-box-monitor: failed");
         return -1;
@@ -93,7 +106,8 @@ int monitor(int argc, char **argv) noexcept
 
     // int ret = sigprocmask(SIG_BLOCK, &mask, NULL);
     // if (ret == -1) {
-    // throw fmt::system_error(errno, "Failed to call sigprocmask to block signal");
+    // throw fmt::system_error(errno, "Failed to call sigprocmask to block
+    // signal");
     // }
 
     // auto sfd = linglong::util::FD(ret);
@@ -124,9 +138,9 @@ int monitor(int argc, char **argv) noexcept
     // } else if (WIFSIGNALED(stat)) {
     // spdlog::warn("child (pid={}) killed by signal {}", pid, WTERMSIG(stat));
     // } else if (WIFSTOPPED(stat)) {
-    // spdlog::debug("child (pid={}) stopped by signal {}", pid, WTERMSIG(stat));
-    // } else if (WIFCONTINUED(stat)) {
-    // spdlog::debug("child (pid={}) continued", pid);
+    // spdlog::debug("child (pid={}) stopped by signal {}", pid,
+    // WTERMSIG(stat)); } else if (WIFCONTINUED(stat)) { spdlog::debug("child
+    // (pid={}) continued", pid);
     // }
     // }
     // } else if (info.ssi_signo == SIGTERM) {
@@ -159,4 +173,5 @@ int monitor(int argc, char **argv) noexcept
 
     // return 0;
 }
+
 } // namespace linglong::box
