@@ -70,4 +70,18 @@ void Builder::Create()
     }
 }
 
+pid_t Builder::startMonitor(util::FD config, util::FD socket, util::PipeWriteEnd runtimeWrite,
+                            util::PipeReadEnd monitorRead, util::PipeWriteEnd monitorWrite,
+                            util::PipeReadEnd rootfsRead, util::PipeWriteEnd rootfsWrite, util::PipeReadEnd initRead,
+                            util::PipeWriteEnd initWrite)
+{
+    auto ret = vfork();
+    if (ret) {
+        return ret;
+    } else {
+        config.dup();
+        execve();
+    }
+}
+
 } // namespace linglong::box::container

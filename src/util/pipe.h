@@ -108,7 +108,7 @@ struct PipeWriteEnd : public FD {
 inline std::tuple<PipeReadEnd, PipeWriteEnd> pipe()
 {
     int ends[2];
-    if (::pipe(ends)) {
+    if (::pipe2(ends, O_CLOEXEC)) {
         auto err = fmt::system_error(errno, "failed to create pipe");
         SPDLOG_ERROR(err.what());
         throw err;

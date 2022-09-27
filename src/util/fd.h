@@ -82,7 +82,7 @@ struct FD : public NonCopyable {
         return FD(ret);
     }
 
-    FD dup() const
+    FD dup(int flag = 0) const
     {
         auto ret = ::dup(this->__fd);
         if (ret < 0) {
@@ -90,6 +90,11 @@ struct FD : public NonCopyable {
             SPDLOG_ERROR(err.what());
             throw err;
         }
+
+        if (flag) {
+            ::fcntl(this->__fd,F_);
+        }
+
         return FD(ret);
     }
 
