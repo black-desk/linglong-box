@@ -6,11 +6,6 @@
 #include "util/exception.h"
 #include "util/log.h"
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/syslog_sink.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
-#include "docopt.cpp/docopt.h"
-
 namespace linglong::box {
 
 using fmt::format;
@@ -40,23 +35,9 @@ Options:
 
 int ll_box(int argc, char **argv)
 {
-    {
-        // Initialize logger
+    util::init_logger("ll-box");
 
-        auto syslog = std::make_shared<spdlog::sinks::syslog_sink_st>("ll-box", LOG_PID, LOG_USER, true);
-        auto stdlog = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
-
-        syslog->set_pattern("<%s/%!> %#: %v");
-
-        std::array<spdlog::sink_ptr, 2> sinks = {
-            syslog,
-            stdlog,
-        };
-
-        auto logger = std::make_shared<spdlog::logger>("ll-box", begin(sinks), end(sinks));
-        spdlog::set_default_logger(move(logger));
-        util::init_log_level();
-    }
+    SPDLOG_TRACE("ll-box started");
 
     map<string, docopt::value> args;
 
@@ -83,7 +64,9 @@ int ll_box(int argc, char **argv)
         for (auto &arg : args) {
             buf << arg.first << " " << arg.second << endl;
         }
-        return buf.str();
+        auto str = buf.str();
+        str.pop_back();
+        return str;
     }());
 
     for (auto &command : commands) {

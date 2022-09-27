@@ -5,6 +5,8 @@
 #include <array>
 #include <stdexcept>
 
+namespace linglong::box::util {
+
 template<typename Key, typename Value, std::size_t Size>
 struct Map {
     std::array<std::pair<Key, Value>, Size> data;
@@ -20,4 +22,5 @@ struct Map {
     }
 };
 
+} // namespace linglong::box::util
 #endif /* ifndef LINGLONG_BOX_SRC_UTIL_CONSTEXPR_MAP */

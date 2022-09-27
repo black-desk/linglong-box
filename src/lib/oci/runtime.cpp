@@ -64,10 +64,11 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
 
     using linglong::box::util::FLockGuard;
 
-    std::unique_ptr<container::Builder> builder;
     std::unique_ptr<FD> containerWorkingDir;
 
     try {
+        std::unique_ptr<container::Builder> builder;
+
         { // init builder
             auto guard = FLockGuard(this->workingDir);
 
@@ -146,25 +147,10 @@ void Runtime::Create(const std::string &containerID, FD pathToBundle)
             SPDLOG_INFO("container \"{}\" created", containerID);
         }
 
-        SPDLOG_TRACE("request monitor/init to run \"prestart/createRuntime/createContainer\"");
-        assert(builder->monitorPipe);
-        *builder->monitorPipe << 0;
-        SPDLOG_TRACE("done");
-
-        int msg = -1;
-        SPDLOG_DEBUG("waiting monitor to report \"prestart/createRuntime/createContainer\" hooks result");
-        assert(builder->pipe);
-        *builder->pipe >> msg;
-        SPDLOG_DEBUG("done");
-
-        if (msg < 0) {
-            auto err = fmt::system_error(-msg, "failed to run \"prestart/createRuntime/createContainer\" hooks");
-            SPDLOG_ERROR(err.what());
-            throw err;
-        }
+        builder->AfterCreated();
 
     } catch (...) {
-        auto err = fmt::system_error(errno, "failed to create container (name=\"{}\")", containerID);
+        auto err = std::runtime_error(fmt::format("failed to create container (name=\"{}\")", containerID));
         SPDLOG_ERROR(err.what());
         try {
             SPDLOG_INFO("doing clean up");

@@ -12,9 +12,9 @@ int main(int argc, char **argv)
     auto exe = std::string(argv[0]);
 
     std::map<std::string, std::function<int(int, char **)>> programs = {
-        {"init", linglong::box::init},
-        {"monitor", linglong::box::monitor},
-        {"rootfs-preparer", linglong::box::rootfs_preparer},
+        {"ll-box-init", linglong::box::init},
+        {"ll-box-monitor", linglong::box::monitor},
+        {"ll-box-rootfs-preparer", linglong::box::rootfs_preparer},
     };
 
     auto program = programs.find(exe);

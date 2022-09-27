@@ -12,10 +12,54 @@
 // #include <unistd.h>
 
 // #include <util/fd.h>
+
+#include <memory>
+
+#include "docopt.cpp/docopt.h"
+
+#include "util/log.h"
+#include "util/exception.h"
+
 namespace linglong::box {
+
+using std::string;
+using sstream = std::stringstream;
+using std::endl;
+using std::map;
+
 // void monitor(int initPID, int rootfsPID, std::string rawJson)
+
+static const char USAGE[] = R"(Usage:
+  ll-box-monitor --config=<config_fd>
+                 --socket=<socket_fd>
+                 --runtime_write=<runtime_write_fd>
+                 --monitor_read=<monitor_read_fd>
+                 --monitor_write=<monitor_write_fd>
+                 --rootfs_read=<rootfs_read_fd>
+                 --rootfs_write=<rootfs_write_fd>
+                 --init_read=<init_read_fd>
+                 --init_write=<init_write_fd>
+)";
+
 int monitor(int argc, char **argv)
 {
+    util::init_logger("ll-box-monitor");
+
+    SPDLOG_TRACE("ll-box-monitor started");
+
+    map<string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, false);
+
+    SPDLOG_TRACE("parsed args:\n{}", [&args]() noexcept -> string {
+        sstream buf;
+        for (auto &arg : args) {
+            buf << arg.first << " " << arg.second << endl;
+        }
+        auto str = buf.str();
+        str.pop_back();
+        return str;
+    }());
+
+    return 0;
     // sigset_t mask;
     // if (sigemptyset(&mask)) {
     // throw fmt::system_error(errno, "Failed to call sigemptyset");

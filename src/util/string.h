@@ -11,7 +11,9 @@ namespace linglong::box::util {
 template <typename T>
 inline std::string strjoin(const std::vector<T>& strs, const std::string_view &seq = " ")
 {
-    assert(strs.size());
+    if(!strs.size()){
+            return "";
+    }
 
     std::string init(strs.front());
 

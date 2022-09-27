@@ -16,10 +16,18 @@ inline void readWithRetry(const int fd, const void *const buf, const std::size_t
             start += ret;
             len -= ret;
         }
-    } while (len && ret >= 0 || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
+    } while (len && ret > 0 || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
 
     if (ret == -1) {
-        throw fmt::system_error(errno, "failed to read from {}", fd);
+        auto err = fmt::system_error(errno, "failed to read from fd={}", fd);
+        SPDLOG_ERROR(err.what());
+        throw err;
+    }
+
+    if (ret == 0 && len) {
+        auto err = std::runtime_error(fmt::format("unexpected EOF from fd={}", fd));
+        SPDLOG_ERROR(err.what());
+        throw err;
     }
 
     return;
@@ -39,24 +47,26 @@ inline void writeWithRetry(const int fd, const void *const buf, const std::size_
     } while (len && ret >= 0 || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
 
     if (ret == -1) {
-        throw fmt::system_error(errno, "failed to read from {}", fd);
+        auto err = fmt::system_error(errno, "failed to write to fd={}", fd);
+        SPDLOG_ERROR(err.what());
+        throw err;
     }
 
     return;
 }
 
-struct PipeReadEnd : public FD {
-    PipeReadEnd(FD &&that)
+struct ReadableFD : public FD {
+    ReadableFD(FD &&that)
         : FD(std::move(that))
     {
     }
 
-    PipeReadEnd(int fd)
+    ReadableFD(int fd)
         : FD(fd)
     {
     }
 
-    PipeReadEnd &operator>>(int &x)
+    ReadableFD &operator>>(int &x)
     {
         SPDLOG_TRACE("read int from fd={}", this->__fd);
         readWithRetry(this->__fd, &x, sizeof(int));
@@ -64,7 +74,7 @@ struct PipeReadEnd : public FD {
         return *this;
     }
 
-    PipeReadEnd &operator>>(std::string &str)
+    ReadableFD &operator>>(std::string &str)
     {
         SPDLOG_TRACE("read string from fd={}", this->__fd);
         int len;
@@ -75,18 +85,18 @@ struct PipeReadEnd : public FD {
     }
 };
 
-struct PipeWriteEnd : public FD {
-    PipeWriteEnd(FD &&that)
+struct WriteableFD : public FD {
+    WriteableFD(FD &&that)
         : FD(std::move(that))
     {
     }
 
-    PipeWriteEnd(int fd)
+    WriteableFD(int fd)
         : FD(fd)
     {
     }
 
-    PipeWriteEnd &operator<<(const int &x)
+    WriteableFD &operator<<(const int &x)
     {
         SPDLOG_TRACE("write int={} to fd={}", x, this->__fd);
         writeWithRetry(this->__fd, &x, sizeof(int));
@@ -94,7 +104,7 @@ struct PipeWriteEnd : public FD {
         return *this;
     }
 
-    PipeWriteEnd &operator<<(const std::string &str)
+    WriteableFD &operator<<(const std::string &str)
     {
         SPDLOG_TRACE("write string={} to fd={}", str, this->__fd);
         auto len = str.length();
@@ -105,7 +115,7 @@ struct PipeWriteEnd : public FD {
     }
 };
 
-inline std::tuple<PipeReadEnd, PipeWriteEnd> pipe()
+inline std::tuple<ReadableFD, WriteableFD> pipe()
 {
     int ends[2];
     if (::pipe2(ends, O_CLOEXEC)) {
@@ -113,7 +123,7 @@ inline std::tuple<PipeReadEnd, PipeWriteEnd> pipe()
         SPDLOG_ERROR(err.what());
         throw err;
     }
-    return {PipeReadEnd(ends[0]), PipeWriteEnd(ends[1])};
+    return {ReadableFD(ends[0]), WriteableFD(ends[1])};
 }
 
 } // namespace linglong::box::util

@@ -9,7 +9,7 @@ Container::Container(nlohmann::json config, util::FD pathToBundle)
     , __config(move(config.get<OCI::Config>()))
 {
     SPDLOG_TRACE("linglong::box::container::Container::Container called");
-    SPDLOG_TRACE("[bundle=\"{}\" (fd={})]", this->__bundle.path(), this->__bundle.__fd);
+    SPDLOG_TRACE("[bundle=\"{}\" (fd={})]", this->__bundle->path(), this->__bundle.__fd);
     SPDLOG_TRACE("oci config:\n{}", config.dump(4));
 
     try {

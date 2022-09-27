@@ -38,6 +38,8 @@ struct FD : public NonCopyable {
     FD(int fd)
         : __fd(fd)
     {
+        SPDLOG_TRACE("new file descriptor={} refer to \"{}\"", fd, this->path());
+
         if (fd < 0) {
             auto err = fmt::system_error(EBADF, "fd invalided [errno={} msg=\"{}\"]", errno, std::strerror(errno));
             spdlog::error(err.what());
@@ -82,7 +84,7 @@ struct FD : public NonCopyable {
         return FD(ret);
     }
 
-    FD dup(int flag = 0) const
+    FD dup(int flag = -1) const
     {
         auto ret = ::dup(this->__fd);
         if (ret < 0) {
@@ -91,11 +93,17 @@ struct FD : public NonCopyable {
             throw err;
         }
 
-        if (flag) {
-            ::fcntl(this->__fd,F_);
-        }
-
         return FD(ret);
+    }
+
+    void clear()
+    {
+        auto ret = ::fcntl(this->__fd, F_SETFD, 0);
+        if (ret == -1) {
+            auto err = fmt::system_error(errno, "failed to clear flag of fd={}", ret);
+            SPDLOG_ERROR(err.what());
+            throw err;
+        }
     }
 
 private:
