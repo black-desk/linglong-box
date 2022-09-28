@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "oci/config.h"
-#include "oci/state.h"
+#include "lib/oci/config.h"
+#include "lib/oci/state.h"
 #include "util/pipe.h"
 
 namespace linglong::box::container {

@@ -3,18 +3,16 @@
 
 #include "ll-box.h"
 #include "commands.h"
+#include "util/args.h"
 #include "util/exception.h"
 #include "util/log.h"
 
 namespace linglong::box {
 
 using fmt::format;
-using sstream = std::stringstream;
 using std::cerr;
-using std::endl;
 using std::get;
 using std::map;
-using std::move;
 using std::string;
 
 static const char USAGE_TEMPLATE[] = R"(ll-box: OCI Runtime for linglong.
@@ -56,18 +54,8 @@ int ll_box(int argc, char **argv) noexcept
 
         SPDLOG_TRACE("generated usage:\n{}", usage);
 
-        args = docopt::docopt(usage, {argv + 1, argv + argc}, true, "ll-box 1.0");
+        args = util::parseArgs(usage.c_str(), argc, argv, true, "ll-box 1.0");
     }
-
-    SPDLOG_TRACE("parsed args:\n{}", [&args]() noexcept -> string {
-        sstream buf;
-        for (auto &arg : args) {
-            buf << arg.first << " " << arg.second << endl;
-        }
-        auto str = buf.str();
-        str.pop_back();
-        return str;
-    }());
 
     for (auto &command : commands) {
         if (args.find(get<0>(command))->second.asBool()) {
@@ -75,7 +63,8 @@ int ll_box(int argc, char **argv) noexcept
                 get<2>(command)(args);
                 return 0;
             } catch (const std::exception &e) {
-                cerr << format("ll-box: execution failed:\n{}", util::nestWhat(e));
+                cerr << format("ll-box: execution failed:\n{}",
+                               util::nestWhat(e));
                 return -1;
             }
         }
@@ -83,7 +72,7 @@ int ll_box(int argc, char **argv) noexcept
 
     // NOTE: code should never run to here
     assert(false);
-    cerr << fmt::format("ll-box: unknown command");
+    cerr << format("ll-box: unknown command");
     return -1;
 }
 

@@ -5,7 +5,8 @@
 
 namespace linglong::box::util {
 
-inline void readWithRetry(const int fd, const void *const buf, const std::size_t &nbytes)
+inline void readWithRetry(const int fd, const void *const buf,
+                          const std::size_t &nbytes)
 {
     int ret, start = 0, len = nbytes;
     do {
@@ -16,7 +17,8 @@ inline void readWithRetry(const int fd, const void *const buf, const std::size_t
             start += ret;
             len -= ret;
         }
-    } while (len && ret > 0 || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
+    } while (len && ret > 0
+             || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
 
     if (ret == -1) {
         auto err = fmt::system_error(errno, "failed to read from fd={}", fd);
@@ -25,7 +27,8 @@ inline void readWithRetry(const int fd, const void *const buf, const std::size_t
     }
 
     if (ret == 0 && len) {
-        auto err = std::runtime_error(fmt::format("unexpected EOF from fd={}", fd));
+        auto err =
+            std::runtime_error(fmt::format("unexpected EOF from fd={}", fd));
         SPDLOG_ERROR(err.what());
         throw err;
     }
@@ -33,7 +36,8 @@ inline void readWithRetry(const int fd, const void *const buf, const std::size_t
     return;
 }
 
-inline void writeWithRetry(const int fd, const void *const buf, const std::size_t &nbytes)
+inline void writeWithRetry(const int fd, const void *const buf,
+                           const std::size_t &nbytes)
 {
     int ret, start = 0, len = nbytes;
     do {
@@ -44,7 +48,8 @@ inline void writeWithRetry(const int fd, const void *const buf, const std::size_
             start += ret;
             len -= ret;
         }
-    } while (len && ret >= 0 || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
+    } while (len && ret >= 0
+             || (ret == -1 && (errno == EAGAIN || errno == EINTR)));
 
     if (ret == -1) {
         auto err = fmt::system_error(errno, "failed to write to fd={}", fd);
@@ -82,6 +87,16 @@ struct ReadableFD : public FD {
         str.resize(len);
         readWithRetry(this->__fd, &str[0], len);
         return *this;
+    }
+
+    void reset()
+    {
+        if (::lseek(this->__fd, 0, SEEK_SET)) {
+            auto err =
+                fmt::system_error(errno, "failed to reset fd={} read offset");
+            SPDLOG_ERROR(err);
+            throw err;
+        }
     }
 };
 

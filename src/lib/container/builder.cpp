@@ -1,5 +1,5 @@
 #include "builder.h"
-#include "oci/config.h"
+#include "lib/oci/config.h"
 #include "util/exec.h"
 #include <sys/mman.h>
 

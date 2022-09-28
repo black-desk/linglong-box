@@ -13,11 +13,13 @@
 
 // #include <util/fd.h>
 
-#include <sys/prctl.h>
 #include <memory>
-#include <sys/signal.h>
 
 #include "docopt.cpp/docopt.h"
+#include "nlohmann/json.hpp"
+
+#include "lib/container/monitor.h"
+#include "util/args.h"
 #include "util/common.h"
 #include "util/exec.h"
 #include "util/log.h"
@@ -26,9 +28,7 @@
 namespace linglong::box {
 
 using std::string;
-using sstream = std::stringstream;
-using std::endl;
-using std::map;
+using nlohmann::json;
 
 // void monitor(int initPID, int rootfsPID, std::string rawJson)
 
@@ -50,41 +50,33 @@ int monitor(int argc, char **argv) noexcept
 
     SPDLOG_DEBUG("ll-box-monitor started");
 
-    map<string, docopt::value> args =
-        docopt::docopt(USAGE, {argv + 1, argv + argc}, false);
-
-    SPDLOG_TRACE("parsed args:\n{}", [&args]() noexcept -> string {
-        sstream buf;
-        for (auto &arg : args) {
-            buf << arg.first << " " << arg.second << endl;
-        }
-        auto str = buf.str();
-        str.pop_back();
-        return str;
-    }());
+    auto args = util::parseArgs(USAGE, argc, argv, false);
 
     try {
+        auto configFD =
+            util::ReadableFD(args.find("--config")->second.asLong());
+        configFD.reset();
+        std::string configStr;
+        configFD >> configStr;
 
-        // adopt orphaned process
-        {
-            auto ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
-            if (ret) {
-                auto err = fmt::system_error(
-                    errno, "failed to set child subreaper to 1");
-                SPDLOG_WARN(err.what());
-                SPDLOG_WARN(
-                    "MIGHT cannot release rootfs when container deleted");
-            }
-        }
+        auto config = json::parse(configStr).get<OCI::Config>();
 
-        // NOTE:
-        // ll-box-monitor just a subreaper for rootfs-preparer processes
-        // and oci-runtime hook, we don't care about how child processes die.
-        signal(SIGCHLD, SIG_IGN);
+        container::Monitor m(
+            config, util::FD(args.find("--runtime_write")->second.asLong()),
+            util::FD(args.find("--rootfs_write")->second.asLong()),
+            util::FD(args.find("--init_write")->second.asLong()),
+            util::FD(args.find("--monitor_read")->second.asLong()));
 
+        util::FD(args.find("--socket")->second.asLong()),
+            util::FD(args.find("--monitor_write")->second.asLong()),
+            util::FD(args.find("--rootfs_read")->second.asLong()),
+            util::FD(args.find("--init_read")->second.asLong());
+        m.startRootfsPrepaer();
 
+        m.handleHooks();
 
         return 0;
+
     } catch (const std::exception &e) {
         std::cerr << fmt::format("ll-box-monitor: failed:\n{}",
                                  util::nestWhat(e));
