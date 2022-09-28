@@ -9,8 +9,8 @@ Monitor::Monitor(OCI::Config config, util::WriteableFD runtime,
                  util::WriteableFD rootfs, util::WriteableFD init,
                  util::ReadableFD monitor)
 {
-    // adopt orphaned process
     {
+        SPDLOG_TRACE("start adopt orphaned processes");
         auto ret = prctl(PR_SET_CHILD_SUBREAPER, 1);
         if (ret) {
             auto err =
@@ -23,7 +23,9 @@ Monitor::Monitor(OCI::Config config, util::WriteableFD runtime,
     // NOTE:
     // ll-box-monitor just a subreaper for rootfs-preparer processes
     // and oci-runtime hook, we don't care about how child processes die.
+    SPDLOG_TRACE("set SIGCHLD handler to SIG_IGN");
     signal(SIGCHLD, SIG_IGN);
+
 }
 
 } // namespace linglong::box::container

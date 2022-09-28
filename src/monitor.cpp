@@ -53,27 +53,38 @@ int monitor(int argc, char **argv) noexcept
     auto args = util::parseArgs(USAGE, argc, argv, false);
 
     try {
-        auto configFD =
-            util::ReadableFD(args.find("--config")->second.asLong());
-        configFD.reset();
-        std::string configStr;
-        configFD >> configStr;
+        std::unique_ptr<container::Monitor> m;
+        {
+            auto configFD =
+                util::ReadableFD(args.find("--config")->second.asLong());
+            auto socket = util::FD(args.find("--socket")->second.asLong());
+            auto runtimeWrite =
+                util::FD(args.find("--runtime_write")->second.asLong());
+            auto rootfsRead =
+                util::FD(args.find("--rootfs_read")->second.asLong());
+            auto rootfsWrite =
+                util::FD(args.find("--rootfs_write")->second.asLong());
+            auto monitorRead =
+                util::FD(args.find("--monitor_read")->second.asLong());
+            auto monitorWrite =
+                util::FD(args.find("--monitor_write")->second.asLong());
+            auto initRead = util::FD(args.find("--init_read")->second.asLong());
+            auto initWrite =
+                util::FD(args.find("--init_write")->second.asLong());
 
-        auto config = json::parse(configStr).get<OCI::Config>();
+            {
+                configFD.reset();
+                std::string configStr;
+                configFD >> configStr;
+                m.reset(new container::Monitor(
+                    json::parse(configStr).get<OCI::Config>(),
+                    runtimeWrite.dup(), rootfsWrite.dup(),
+                    std::move(monitorRead), initWrite.dup()));
+            }
 
-        container::Monitor m(
-            config, util::FD(args.find("--runtime_write")->second.asLong()),
-            util::FD(args.find("--rootfs_write")->second.asLong()),
-            util::FD(args.find("--init_write")->second.asLong()),
-            util::FD(args.find("--monitor_read")->second.asLong()));
-
-        util::FD(args.find("--socket")->second.asLong()),
-            util::FD(args.find("--monitor_write")->second.asLong()),
-            util::FD(args.find("--rootfs_read")->second.asLong()),
-            util::FD(args.find("--init_read")->second.asLong());
-        m.startRootfsPrepaer();
-
-        m.handleHooks();
+            m->startRootfsPrepaer(std::move(configFD),std::move(rootfsRead),std::move(rootfsWrite),std::move(moni),std::move(runtimeWrite));
+        }
+        m->handleHooks();
 
         return 0;
 
