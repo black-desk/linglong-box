@@ -94,7 +94,7 @@ struct ReadableFD : public FD {
         if (::lseek(this->__fd, 0, SEEK_SET)) {
             auto err =
                 fmt::system_error(errno, "failed to reset fd={} read offset");
-            SPDLOG_ERROR(err);
+            SPDLOG_ERROR(err.what());
             throw err;
         }
     }

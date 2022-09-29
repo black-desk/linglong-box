@@ -5,8 +5,6 @@
 
 #include <optional>
 
-#include <fmt/format.h>
-
 namespace linglong::util {
 
 void readWithRetry(int fd, void *buffer, std::size_t len, std::vector<std::shared_ptr<FD>> *fds = nullptr)

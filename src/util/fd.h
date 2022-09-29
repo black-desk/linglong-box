@@ -6,7 +6,6 @@
 
 #include <cerrno>
 
-#include "fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "util/fmt.h"
 #include "nlohmann/json.hpp"
