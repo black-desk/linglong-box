@@ -82,8 +82,12 @@ int monitor(int argc, char **argv) noexcept
                     std::move(monitorRead), initWrite.dup()));
             }
 
-            m->startRootfsPrepaer(std::move(configFD),std::move(rootfsRead),std::move(rootfsWrite),std::move(moni),std::move(runtimeWrite));
+            m->startRootfsPrepaer(std::move(configFD), std::move(socket),
+                                  std::move(rootfsRead), std::move(rootfsWrite),
+                                  std::move(monitorWrite), std::move(initWrite),
+                                  std::move(initRead));
         }
+
         m->handleHooks();
 
         return 0;

@@ -7,10 +7,18 @@
 namespace linglong::box::container {
 
 struct Monitor {
+    util::ReadableFD sync;
+    OCI::Config config;
+
     Monitor(OCI::Config config, util::WriteableFD runtime,
             util::WriteableFD rootfs, util::WriteableFD init,
             util::ReadableFD monitor);
-    void startRootfsPrepaer();
+    pid_t startRootfsPrepaer(util::ReadableFD config, util::FD socket,
+                             util::ReadableFD rootfsRead,
+                             util::WriteableFD rootfsWrite,
+                             util::WriteableFD monitor,
+                             util::ReadableFD initRead,
+                             util::WriteableFD initWrite);
     void handleHooks();
     ~Monitor();
 };
