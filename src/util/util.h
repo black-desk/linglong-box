@@ -9,7 +9,6 @@
 
 #include "macro.h"
 #include "common.h"
-#include "logger.h"
 #include "semaphore.h"
 #include "filesystem.h"
 #include "json.h"

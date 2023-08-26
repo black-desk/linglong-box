@@ -10,6 +10,7 @@
 
 #include "filesystem_driver.h"
 #include "util/platform.h"
+#include "util/logger.h"
 
 namespace linglong {
 

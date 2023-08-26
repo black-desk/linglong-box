@@ -7,7 +7,7 @@
 #ifndef LINGLONG_BOX_SRC_UTIL_PLATFORM_H_
 #define LINGLONG_BOX_SRC_UTIL_PLATFORM_H_
 
-#include "3party/optional/optional.hpp"
+#include <optional>
 
 #include "common.h"
 
@@ -17,7 +17,7 @@ namespace util {
 
 int PlatformClone(int (*callback)(void *), int flags, void *arg, ...);
 
-int Exec(const util::str_vec &args, tl::optional<std::vector<std::string>> env_list);
+int Exec(const util::str_vec &args, std::optional<std::vector<std::string>> env_list);
 
 void Wait(const int pid);
 void WaitAll();
